@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All privileged data (roles, payments, orders, batches, ledger, settings, audit, DOB index) is
+    // read and written exclusively by server Route Handlers via the Admin SDK, which bypasses these rules.
+    // Clients may only read their own profile document; they can never write anything directly.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

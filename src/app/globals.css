@@ -1,0 +1,82 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --color-forest: #0b3d2e;
+  --color-leaf: #1f9d63;
+  --color-leaf-dark: #17804f;
+  --color-mint: #bfe9d2;
+  --color-ink: #0e1a14;
+  --color-paper: #eef3ee;
+}
+
+:root {
+  --bg: #eef3ee;
+  --fg: #0e1a14;
+  --muted: #52665a;
+  --glass: rgba(255, 255, 255, 0.62);
+  --glass-strong: rgba(255, 255, 255, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --line: rgba(14, 26, 20, 0.1);
+  --accent: #1f9d63;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(31, 157, 99, 0.12);
+  --danger: #c0392b;
+  --warn: #b7791f;
+  --shadow: 0 8px 30px rgba(11, 61, 46, 0.1);
+}
+.dark {
+  --bg: #0c1511;
+  --fg: #e7f1ea;
+  --muted: #94aa9d;
+  --glass: rgba(24, 40, 32, 0.55);
+  --glass-strong: rgba(28, 46, 37, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --line: rgba(231, 241, 234, 0.1);
+  --accent: #3dd68c;
+  --accent-fg: #06150d;
+  --accent-soft: rgba(61, 214, 140, 0.14);
+  --danger: #ff7b6b;
+  --warn: #f0b955;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+html { color-scheme: light; scroll-padding-top: 5rem; }
+html.dark { color-scheme: dark; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+/* Soft aurora behind every page: gives the glass something to blur. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(60rem 40rem at 10% -10%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 60%),
+    radial-gradient(50rem 36rem at 100% 10%, color-mix(in srgb, #0b3d2e 28%, transparent), transparent 60%),
+    radial-gradient(40rem 30rem at 50% 110%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%);
+}
+
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: var(--shadow);
+}
+.glass-strong { background: var(--glass-strong); }
+/* Sticky navbar and its mobile menu: near-opaque so content scrolling underneath never shows through. Must stay after .glass-strong. */
+.glass-nav { background: color-mix(in srgb, var(--bg) 98%, transparent); }
+@supports not (backdrop-filter: blur(1px)) { .glass { background: var(--glass-strong); } }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes float-card { 0%, 100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(-6deg) translateY(-8px); } }

@@ -1,0 +1,15 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "itemId", "order": "ASCENDING" }, { "fieldPath": "paidAt", "order": "DESCENDING" }]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "itemOwnerId", "order": "ASCENDING" }, { "fieldPath": "paidAt", "order": "DESCENDING" }]
+    }
+  ],
+  "fieldOverrides": []
+}
