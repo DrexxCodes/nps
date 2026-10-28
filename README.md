@@ -49,6 +49,13 @@ Configured under **Advanced configuration** on the item form.
 - **Variable sets**: per item, admin-defined sets of values (Size: S/M/L, Colour: ...). Each set is single- or multiple-choice and required or optional. Picks are validated on the server and snapshotted onto the order (`selectedVariants`), then printed in the orders PDF.
 - **Class pricing**: optional per-class prices (class = academic year from the admission number, `derivedAcademicYear`). The item's normal price is the initial price and the fallback. Students receive only their own price: use `toStudentItem()` (`lib/pricing.ts`) for anything a student can see, never raw `Item` data.
 
+## Payments, receipts and tracking
+- Paystack returns to `/dashboard/receipt?reference=...`. The page checks `References/{reference}` (our record, updated by the webhook). Still pending after 5 seconds, it calls `/api/payments/verify`, which queries Paystack's transaction API and updates the record. The receipt only ever renders for a SUCCESSFUL reference that belongs to the signed-in user.
+- Students' order list polls `/api/orders` (batch status is read live), so admin changes to a batch reach every participant without a refresh.
+- **Non-physical items** (dues etc.): untick "physical" on the item. Orders are `fulfillmentStatus: "NOT_REQUIRED"`; there is no batch, pickup or NFC. Export them from the item's Exports tab.
+- **Roles are not exclusive:** every signed-in role can use `/dashboard` (student side); staff and admins switch with the "Viewing as" pill.
+- Default avatars are DiceBear Lorelei, generated locally at `/api/avatar/[seed]` (seed = SHA-256 of the email, never the email).
+
 ## Architecture
 
 ```

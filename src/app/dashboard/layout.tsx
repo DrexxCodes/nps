@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+import { PortalSwitch } from "@/components/layout/PortalSwitch";
 import { SubNav } from "@/components/layout/SubNav";
-import { roleHome } from "@/lib/roles";
 import { requirePageUser } from "@/lib/server/session";
 
 const LINKS = [
@@ -8,8 +7,8 @@ const LINKS = [
   { href: "/dashboard/profile", label: "My profile" }, { href: "/dashboard/settings", label: "Settings" },
 ];
 
+/** The student dashboard is for every signed-in role: staff and admins buy and track items here like anyone else. */
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const user = await requirePageUser();
-  if (user.role !== "STUDENT") redirect(roleHome(user.role));
-  return <><SubNav links={LINKS} />{children}</>;
+  return <><PortalSwitch role={user.role} current="student" /><SubNav links={LINKS} />{children}</>;
 }

@@ -11,9 +11,9 @@ import { formatNaira } from "@/lib/money";
 import { validateVariantSelection, type VariantSelection } from "@/lib/variants";
 import type { Pricing, RequirementType, SubItem, VariantSet } from "@/types";
 
-interface Props { itemId: string; itemName: string; hasSubItems: boolean; subItems: SubItem[]; variantSets: VariantSet[]; signedIn: boolean; studentName: string; batched: boolean }
+interface Props { itemId: string; itemName: string; hasSubItems: boolean; subItems: SubItem[]; variantSets: VariantSet[]; signedIn: boolean; studentName: string; avatarSeed?: string; batched: boolean; physical?: boolean }
 
-export function Checkout({ itemId, itemName, hasSubItems, subItems, variantSets, signedIn, studentName, batched }: Props) {
+export function Checkout({ itemId, itemName, hasSubItems, subItems, variantSets, signedIn, studentName, avatarSeed, batched, physical = true }: Props) {
   const toast = useToast();
   const [selected, setSelected] = useState<string[]>(subItems.filter((s) => s.required).map((s) => s.id));
   const [variants, setVariants] = useState<VariantSelection>({});
@@ -71,7 +71,8 @@ export function Checkout({ itemId, itemName, hasSubItems, subItems, variantSets,
             <div className="flex justify-between border-t border-[var(--line)] pt-2 text-base font-bold"><dt>Total</dt><dd>{formatNaira(pricing.totalKobo)}</dd></div>
           </dl>
         ) : <p className="text-sm text-[var(--muted)]">Select at least one option to see your total.</p>}
-        {batched && <p className="mt-3 text-xs text-[var(--muted)]">Orders for this item are collected in batches. You'll see your batch status in your dashboard after paying.</p>}
+        {physical && batched && <p className="mt-3 text-xs text-[var(--muted)]">Orders for this item are collected in batches. You'll see your batch status in your dashboard after paying.</p>}
+        {!physical && <p className="mt-3 text-xs text-[var(--muted)]">Nothing to collect for this one. You'll get a receipt as soon as your payment is confirmed.</p>}
       </div>
 
       {signedIn ? (
@@ -80,7 +81,7 @@ export function Checkout({ itemId, itemName, hasSubItems, subItems, variantSets,
         <Link href={`/login?next=/items/${itemId}`} className={`${buttonClass()} w-full`}>Sign in to pay</Link>
       )}
       {signedIn && unanswered.length > 0 && <p className="text-center text-xs text-[var(--muted)]">Choose an option for {unanswered.join(", ")} to continue.</p>}
-      <RequirementsSheet open={missing.length > 0} missing={missing} name={studentName} onClose={() => setMissing([])} onComplete={() => { setMissing([]); void pay(); }} />
+      <RequirementsSheet open={missing.length > 0} missing={missing} name={studentName} seed={avatarSeed} onClose={() => setMissing([])} onComplete={() => { setMissing([]); void pay(); }} />
       <span className="sr-only">{itemName}</span>
     </div>
   );

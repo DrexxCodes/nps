@@ -26,7 +26,7 @@ export function SettingsAdminForm({ settings }: { settings: PlatformSettings }) 
     if (r.ok) { toast("success", "Settings saved"); router.refresh(); } else toast("error", Object.values(r.fields ?? {})[0] ?? r.message);
   });
   return (
-    <form onSubmit={onSubmit} className="w-full space-y-5">
+    <form suppressHydrationWarning onSubmit={onSubmit} className="w-full space-y-5">
       {/* One column on phones, two side by side from lg up so the page uses the full width instead of hugging the left edge. */}
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <Card className="space-y-4 lg:p-6">

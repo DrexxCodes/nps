@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Input, Select } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 
-export function ExportForm({ items, fixedItemId }: { items: { id: string; name: string }[]; fixedItemId?: string }) {
+export function ExportForm({ items, fixedItemId, physical = true }: { items: { id: string; name: string }[]; fixedItemId?: string; physical?: boolean }) {
   const toast = useToast();
   const [itemId, setItemId] = useState(fixedItemId ?? "");
   const [from, setFrom] = useState("");
@@ -30,7 +30,7 @@ export function ExportForm({ items, fixedItemId }: { items: { id: string; name: 
     <Card className="max-w-xl space-y-4">
       {!fixedItemId && <Select label="Item" value={itemId} onChange={(e) => setItemId(e.target.value)}><option value="">All items I can access</option>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</Select>}
       <div className="grid gap-4 sm:grid-cols-2"><Input label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /><Input label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} hint="Same day twice exports a single date." /></div>
-      <Select label="Fulfillment" value={fulfillment} onChange={(e) => setFulfillment(e.target.value)}><option value="ALL">All paid orders</option><option value="AWAITING">Awaiting collection</option><option value="DELIVERED">Delivered</option></Select>
+      {physical && <Select label="Fulfillment" value={fulfillment} onChange={(e) => setFulfillment(e.target.value)}><option value="ALL">All paid orders</option><option value="AWAITING">Awaiting collection</option><option value="DELIVERED">Delivered</option></Select>}
       <Button loading={busy} icon={<Download className="size-4" />} onClick={run}>Export PDF</Button>
       <p className="text-xs text-[var(--muted)]">Only paid orders are included. Contact details, bank data and emergency contacts are never exported.</p>
     </Card>

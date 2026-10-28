@@ -10,7 +10,7 @@ export const metadata = { title: "Payment history" };
 export const dynamic = "force-dynamic";
 
 export default async function TransactionsPage() {
-  const user = await requirePageUser(["STUDENT"]);
+  const user = await requirePageUser();
   const txns = await transactionsForUser(user.uid);
   return (
     <>

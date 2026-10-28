@@ -23,7 +23,7 @@ const fakeDb = {
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/server/firebase-admin", () => ({ db: () => fakeDb, adminAuth: () => ({ getUser: async (uid: string) => ({ uid, email: "ada@example.com", displayName: "Ada", emailVerified: false }) }) }));
 
-import { adoptDarsUser, loadUserForSession } from "@/lib/server/shared-user";
+import { adoptDarsUser, linkDarsRegNumber, loadUserForSession } from "@/lib/server/shared-user";
 import { resolveRole } from "@/lib/roles";
 
 const darsDoc = (over: Record<string, unknown> = {}) => ({ uid: "u1", email: "ada@example.com", name: "Ada Obi", regNumber: "2024134106", admin: false, scope: null, assignedCourses: [], banned: false, createdAt: 123, ...over });
@@ -85,3 +85,45 @@ describe("adoptDarsUser (DARS-created account signing in to NPS)", () => {
     expect(await loadUserForSession("ghost")).toBeNull();
   });
 });
+
+describe("birthday collected in DARS", () => {
+  it("is kept when the DARS account is adopted by NPS", async () => {
+    store.set("users/u1", darsDoc({ dateOfBirth: "2003-05-17" }));
+    await adoptDarsUser("u1");
+    expect(store.get("users/u1")).toMatchObject({ role: "STUDENT", dateOfBirth: "2003-05-17" });
+  });
+});
+
+describe("linkDarsRegNumber (registration number added in DARS after the NPS account existed)", () => {
+  const npsDoc = (over: Record<string, unknown> = {}) => ({ uid: "u1", role: "STUDENT", fullName: "Ada Obi", email: "ada@example.com", admissionType: "REGULAR", admissionNumber: null, admissionStatus: "AWAITING", regNumber: "2024134106", ...over });
+
+  it("links the number as the admission number and indexes it", async () => {
+    store.set("users/u1", npsDoc());
+    const u = await loadUserForSession("u1");
+    expect(u).toMatchObject({ admissionNumber: "2024134106", admissionStatus: "PROVIDED" });
+    expect(store.get("users/u1")).toMatchObject({ admissionNumber: "2024134106", admissionType: "REGULAR", admissionStatus: "PROVIDED" });
+    expect(store.get("admissionNumbers/2024134106")).toMatchObject({ uid: "u1", fullName: "Ada Obi" });
+  });
+
+  it("leaves the account awaiting when the number is another admission type or a DARS-only code", async () => {
+    store.set("users/u1", npsDoc({ regNumber: "2024133106" })); // CEP number on a Regular account
+    await linkDarsRegNumber("u1");
+    expect(store.get("users/u1")).toMatchObject({ admissionNumber: null, admissionStatus: "AWAITING" });
+    store.set("users/u2", npsDoc({ uid: "u2", admissionType: null, regNumber: "2024174106" })); // Education number
+    await linkDarsRegNumber("u2");
+    expect(store.get("users/u2")).toMatchObject({ admissionNumber: null });
+  });
+
+  it("never takes a number indexed to someone else, and does nothing when there is nothing to link", async () => {
+    store.set("users/u1", npsDoc());
+    store.set("admissionNumbers/2024134106", { uid: "other" });
+    await linkDarsRegNumber("u1");
+    expect(store.get("users/u1")).toMatchObject({ admissionNumber: null });
+    expect(store.get("admissionNumbers/2024134106")).toEqual({ uid: "other" });
+    store.set("users/n1", { uid: "n1", role: "STAFF", fullName: "Sam", regNumber: null });
+    const before = structuredClone(store.get("users/n1"));
+    await loadUserForSession("n1");
+    expect(store.get("users/n1")).toEqual(before);
+  });
+});
+

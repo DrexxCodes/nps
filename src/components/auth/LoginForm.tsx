@@ -17,11 +17,11 @@ export function LoginForm() {
     setError(null);
     const res = await signInAndCreateSession(email, password);
     if (!res.ok) return setError(res.message);
-    window.location.href = next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+    window.location.href = next && next.startsWith("/") && !next.startsWith("//") ? next : "/go";
   });
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+    <form suppressHydrationWarning onSubmit={onSubmit} className="space-y-4" noValidate>
       <Input label="Email" type="email" autoComplete="email" inputMode="email" required {...register("email", { required: true })} />
       <PasswordInput label="Password" autoComplete="current-password" required {...register("password", { required: true })} />
       {error && <p role="alert" className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-[var(--danger)]">{error}</p>}

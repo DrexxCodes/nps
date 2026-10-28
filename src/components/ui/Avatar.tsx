@@ -1,9 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
-export function Avatar({ name, src, size = 48 }: { name: string; src?: string | null; size?: number }) {
-  const initials = name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("");
-  return src ? (
-    <img src={src} alt={name} width={size} height={size} className="rounded-full object-cover" style={{ width: size, height: size }} />
-  ) : (
-    <span className="grid place-items-center rounded-full bg-[var(--accent-soft)] font-display font-bold text-[var(--accent)]" style={{ width: size, height: size, fontSize: size * 0.38 }} aria-label={name}>{initials}</span>
-  );
+import { defaultAvatarUrl } from "@/lib/avatar";
+
+/**
+ * The person's photo when they have one; otherwise their generated Lorelei avatar (not initials).
+ * `seed` should be the same seed the server uses for that person so the avatar never changes between pages; it falls back to the name.
+ */
+export function Avatar({ name, src, seed, size = 48 }: { name: string; src?: string | null; seed?: string; size?: number }) {
+  return <img src={src || defaultAvatarUrl(seed || name || "student")} alt={name} width={size} height={size} className="rounded-full bg-[var(--accent-soft)] object-cover" style={{ width: size, height: size }} />;
 }

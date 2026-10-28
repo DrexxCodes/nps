@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { micahAvatarUrl } from "@/lib/avatar";
+import { createAvatar } from "@dicebear/core";
+import * as lorelei from "@dicebear/lorelei";
+import { AVATAR_SEED_PATTERN, defaultAvatarUrl } from "@/lib/avatar";
 import { avatarSeedOf, buildPublicProfileFields } from "@/lib/server/public-profile";
 
 const user = {
@@ -30,11 +32,19 @@ describe("buildPublicProfileFields", () => {
 });
 
 describe("default avatar", () => {
-  it("is a stable Micah URL whose seed is a hash, so the email never appears in it", () => {
+  it("is a local, stable URL whose seed is a hash, so the email never appears in it", () => {
     const seed = avatarSeedOf("  ADA@example.com ");
     expect(seed).toBe(avatarSeedOf("ada@example.com"));
-    const url = micahAvatarUrl(seed);
-    expect(url.startsWith("https://api.dicebear.com/9.x/micah/svg?seed=")).toBe(true);
+    const url = defaultAvatarUrl(seed);
+    expect(url).toBe(`/api/avatar/${seed}`);
     expect(url).not.toContain("ada");
+    expect(AVATAR_SEED_PATTERN.test(seed)).toBe(true);
+  });
+
+  it("generates the same Lorelei SVG for the same seed, locally", () => {
+    const a = createAvatar(lorelei, { seed: "abc" }).toString();
+    expect(a.startsWith("<svg")).toBe(true);
+    expect(createAvatar(lorelei, { seed: "abc" }).toString()).toBe(a);
+    expect(createAvatar(lorelei, { seed: "abd" }).toString()).not.toBe(a);
   });
 });

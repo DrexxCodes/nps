@@ -1,5 +1,91 @@
 # Changelog
 
+## 0.6.0 - Item-first landing page, parallax hero, ID-style student profile
+
+### Changed
+- **Landing page** now presents NPS as a place to buy NAPSS items: new headline and copy, "Browse items" is the primary action, and the floating "NAPSS Student ID" card is gone. Added a "How it works" row (browse, pay, collect). The NFC bullet was replaced by "Pick sizes and options right on the item".
+- **Hero background** is the supplied photo (`public/images/hero.webp`, converted from `hero2.jpg`, 136 KB) as a parallax layer under a dark scrim: `components/landing/ParallaxBg.tsx` moves it at 0.3x scroll speed with one passive listener + rAF, transform only, off-screen frames skipped, disabled for `prefers-reduced-motion`. Served through `next/image` with `priority`.
+- **`/st/[admissionNumber]`** rebuilt on the Digital ID layout: left-aligned full-width header (avatar, eyebrow, name, admission number, class), a ruled membership row (association, birthday when shown), then a tab-style "Profile" heading with About and Links in two columns (stacked on mobile). Links now show the handle/URL, not just an icon. Only public fields are used (no email, department or fees).
+- The profile page no longer uses the aurora backdrop or the centred glass card. `body:has([data-plain])` hides the aurora and makes the light theme white on any page that opts in with `data-plain`.
+- Default meta description no longer mentions ID services.
+
+### Changed (branding)
+- All icons regenerated from the official NAPSS logo (`napss.png`, 1080px): `public/icons/{icon-192,icon-512,logo,maskable-512}.png`, `public/{favicon.ico,favicon-32.png,apple-touch-icon.png}`, and the matching Next file-convention icons `src/app/{icon.png,apple-icon.png,favicon.ico}`.
+- Sizes: any-purpose 192/512 as transparent circular seal; maskable 512 opaque white with the seal inside the 80% safe zone; Apple touch 180 opaque white (iOS ignores transparency); `favicon.ico` holds 16/32/48/64.
+- Service worker cache bumped to `nps-shell-v2` so installed PWAs pick up the new icons.
+
+### Fixed (order emails)
+- Duplicate payment emails: webhook, verify and receipt polling could all call `sendOrderEmail` at once and each send before any recorded `SENT`. The order is now claimed in a Firestore transaction (`emailStatus: SENDING`, `emailClaimedAt`) so exactly one caller sends; a claim older than 5 minutes is retaken, and a missing user releases the claim back to `PENDING`.
+- Newlines in an item name can no longer reach the email subject.
+
+### Changed (overlay)
+- Hero overlay darkened (top 50%, middle 70%, bottom 90% black) for stronger text contrast over the photo.
+
+### Changed (scroll-stack)
+- **How it works** is now three full-screen sticky panels (forest, mint, green) that slide over each other as you scroll, with the grid backdrop from the reference, rounded top edges and a "Browse items" button on the last panel. Full-bleed like the hero. New: `components/landing/{HowItWorks,StepPanel,SmoothScroll}.tsx`.
+- **Lenis smooth scrolling** (`lenis` ^1.3.11 added to `package.json`, run `pnpm install`) is applied on the landing page only, via `ReactLenis root`. It is off for reduced-motion users (native scroll). Lenis' recommended base CSS is inlined in `globals.css`.
+
+### Changed (follow-up)
+- Removed the three stat cards from the hero.
+- Hero is now full-bleed: spans the full viewport width on every screen size, no rounded container, and slides up behind the floating navbar. Content stays aligned with the page column. `body:has([data-landing])` uses `overflow-x: clip` so the 100vw breakout never causes sideways scroll.
+- Parallax image is a plain `<img>` with inline styles (no `next/image`), and the scrim is lighter so the photo reads through.
+
+### Fixed
+- Hero photo not showing: the parallax layer and the dark scrim no longer depend on Tailwind generating new classes (`bg-gradient-to-*` is `bg-linear-to-*` in Tailwind v4). Insets and gradient are inline styles, and the image is `unoptimized` (already a 136 KB WebP) so it does not need the image optimizer / `sharp`.
+- Renamed "Services" to "Items" in the navbar, items page title, and the "Browse services" / "Back to services" links.
+
+### Removed
+- Unused `float-card` keyframes.
+
+### Added
+- `socialDisplay()` in `lib/social.ts`; `data/landing.ts`; `data/social-icons.ts`; `components/profile/public/{ProfileHeader,ProfileDetails}.tsx`; `components/landing/{Hero,ParallaxBg}.tsx`.
+
+## 0.5.0 - Single sign-in with DARS, DARS birthdays and registration numbers respected
+
+### Added
+- **Single sign-in with DARS.** Signing in sets an HMAC-signed httpOnly cookie plus a readable hint cookie (`/api/auth/session` now does both; sign-out clears them). A signed-out visitor with a live DARS session sees "Welcome back, {name}: continue as {name}?"; one tap exchanges it for a Firebase custom token and creates the normal NPS session (honours `?next=`). Sessions that predate this are picked up quietly by `POST /api/auth/sso/session`. New: `lib/sso/*`, `lib/client/sso.ts`, `/api/auth/sso`, `/api/auth/sso/session`, `components/auth/SsoBridge.tsx`. Off unless `SSO_SECRET` is set.
+- `linkDarsRegNumber`: a student who added their registration number in DARS (arriving from NPS without an admission number) gets it linked as their NPS admission number and indexed the next time the account loads. Skips DARS-only Education codes, a Regular/CEP mismatch, and numbers indexed to someone else.
+
+### Changed
+- Sign-in and enroll pages show a fixed inline block ("You're signed in to DARS as {name}" + **Continue with DARS** + "or sign in with your email") whenever DARS has a live session, even after signing out. Other pages keep the floating card.
+
+### Fixed
+- SSO sync no longer trusts the hint cookie alone (a stale one from before `SSO_COOKIE_DOMAIN` was set could stop the shared cookie ever being written). It now syncs once per tab session and reads every copy of the hint cookie.
+- `adoptDarsUser` reset `dateOfBirth` to `null`; DARS now collects birthdays, so adoption keeps the stored date (and its DOB index entry).
+
+### Setup
+- Add `SSO_SECRET` (same 32+ char value in both apps) and, in production, `SSO_COOKIE_DOMAIN` (e.g. `.yourschool.edu.ng`). Both apps must sit on subdomains of one domain you control.
+- `SSO_DISABLED` error code added (501).
+
+## 0.4.0 - Receipts, live tracking, no-collection items, portals
+
+### Added
+- **Receipt page** (`/dashboard/receipt?reference=...`) is now Paystack's callback. It reads our own `References/{reference}` record: paid shows the receipt (items, options, fee breakdown, what happens next, print), otherwise `ReceiptWatcher` keeps checking every ~1.5s and, if still pending after 5 seconds, calls `/api/payments/verify`, which asks Paystack's transaction API directly and updates the record. Failed and abandoned payments get their own message. New endpoint `GET /api/payments/status` reads only our record. Old callbacks to `/dashboard/orders?reference=` redirect to the receipt.
+- **Live order tracking.** `LiveOrders` re-checks `GET /api/orders` every 8s while the tab is visible and on focus, so new orders and admin batch changes (Queued > Processing > Ready for pickup > Delivered) show without a refresh. Each order shows a progress line. Batch status is read live from the batch documents, one read per distinct batch.
+- **Non-physical items.** New "Collection" card on the item form: untick "physical" for dues and fees. Those items have no batches, pickup or NFC (enforced in `itemSchema`, the form and checkout), orders get `fulfillmentStatus: "NOT_REQUIRED"` and students just see a paid receipt. Admins export them from the Exports tab as usual. They are excluded from staff collection, `deliverOrder`, and the admin "Awaiting fulfillment" stat (`noCollectionOrders` counter). Items saved before this default to physical.
+- **Student / Staff / Admin switch.** Staff, admins and the super admin can use the student dashboard (view items, pay, track, receipts, settings) and switch with the "Viewing as" pill on every dashboard. Sign-in now lands on each role's own home (`/go`).
+- **Local DiceBear Lorelei avatars** for anyone without a photo (`@dicebear/core` + `@dicebear/lorelei`), generated by our own `/api/avatar/[seed]` and cached, replacing initials and the remote Micah URL. A real photo replaces it as soon as one is saved.
+- `Drawer` (side drawer from the right) beside `Sheet`, which now always glides up from the bottom.
+
+### Changed
+- Enrollment type cards (Regular / CEP) have hover, keyboard-focus and pressed states, and show a selected state before the form opens.
+- Profile-requirements prompt is a side drawer; item suspend/restore uses a bottom sheet with a reason field instead of `window.prompt`.
+- Staff, admins and the super admin can now see and use `/dashboard/*` (it used to redirect them away).
+
+### Fixed
+- Orders not appearing until a manual refresh after paying: the old return page rendered the (empty) list before the payment was confirmed and then raced `router.replace` with `router.refresh`.
+
+### Upgrade
+- `pnpm install` (new dependencies). Commit the updated `pnpm-lock.yaml`.
+- `components/student/VerifyOnReturn.tsx` is no longer used and can be deleted.
+
+## 0.3.1 - Signed-in catalog, PWA entry, 404 page
+
+### Changed
+- **Services are for signed-in users only.** `/items` and `/items/[id]` redirect signed-out visitors to `/login?next=...` (optimistic redirect in `proxy.ts` plus a server check on each page), and `GET /api/items` and the quote endpoint now return 401 when signed out. Prices (including class prices) are no longer visible to anonymous visitors.
+- **Installed PWA opens on sign-in.** When the app runs standalone, `/` skips the landing page: signed-out users go to `/login`, signed-in users to their role's home (`PwaEntry`). Browsers still see the landing page.
+- **404 page** now shows `public/404.svg` with a friendlier message. It renders inside the root layout, so the header and footer stay.
+
 ## 0.3.0 - Variable sets and class pricing (Advanced configuration)
 
 ### Added

@@ -64,6 +64,20 @@ body::before {
     radial-gradient(40rem 30rem at 50% 110%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%);
 }
 
+/* Plain pages (e.g. the public /st profile): flat surface, no aurora. Light mode goes white; dark keeps its own background. */
+body:has([data-plain])::before { display: none; }
+html:not(.dark) body:has([data-plain]) { --bg: #ffffff; }
+
+/* Landing hero is full-bleed (100vw); clip, not hide, so the sticky navbar keeps working and nothing scrolls sideways. */
+body:has([data-landing]) { overflow-x: clip; }
+
+/* Lenis smooth scroll (recommended base rules, inlined so no package CSS import is needed). */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: clip; }
+.lenis.lenis-smooth iframe { pointer-events: none; }
+
 .glass {
   background: var(--glass);
   border: 1px solid var(--glass-border);
@@ -79,4 +93,38 @@ body::before {
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-@keyframes float-card { 0%, 100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(-6deg) translateY(-8px); } }
+@keyframes drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+/* Installed PWA: never flash the marketing landing page; PwaEntry redirects to sign-in / the user's home. */
+html[data-pwa] [data-landing] { display: none; }
+@media (prefers-reduced-motion: reduce) { [class*="animation:sheet-up"], [class*="animation:drawer-in"] { animation: none !important; } }
+
+/* Selectable cards (e.g. enrol admission type): active outline on hover, keyboard focus, press and selected.
+   Plain CSS on purpose: .glass above is unlayered, so it would override Tailwind border/ring utilities. */
+.choice-card { outline: 2px solid transparent; outline-offset: 2px; cursor: pointer; transition: outline-color 0.15s ease, background-color 0.2s ease, transform 0.2s ease; }
+.choice-card:disabled { cursor: not-allowed; }
+.choice-card:not(:disabled):hover,
+.choice-card:not(:disabled):focus-visible,
+.choice-card:not(:disabled):active,
+.choice-card[aria-pressed="true"] { outline-color: var(--accent); background: var(--accent-soft); }
+.choice-card:not(:disabled):hover > span:first-child,
+.choice-card:focus-visible > span:first-child,
+.choice-card[aria-pressed="true"] > span:first-child { background: var(--accent); color: var(--accent-fg); }
+.choice-card[aria-pressed="true"] > span[aria-hidden] { opacity: 1; transform: scale(1); }
+
+/* Printing a receipt prints only the receipt card (.print-area): everything else on the page is removed.
+   Margin 0 also drops the browser's own date / URL header and footer; the card supplies its own padding. */
+@page { margin: 0; }
+@media print {
+  body *:not(.print-area):not(.print-area *):not(:has(.print-area)) { display: none !important; }
+  body::before { display: none; }
+  html, body { background: #fff !important; color: #000 !important; min-height: 0 !important; }
+  .print-area {
+    --fg: #000; --muted: #444; --line: #d4d4d4; --accent-soft: #eef7f1; --accent: #17804f;
+    background: #fff !important; color: #000 !important; border: 1px solid #d4d4d4 !important; box-shadow: none !important;
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+    margin: 12mm auto !important; break-inside: avoid;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .no-print { display: none !important; }
+}

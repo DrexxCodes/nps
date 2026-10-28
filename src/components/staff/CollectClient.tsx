@@ -31,14 +31,23 @@ export function CollectClient() {
   const deliver = async () => {
     if (!confirm) return;
     const r = await api(`/api/staff/orders/${confirm.orderId}/deliver`, { method: "POST", json: { confirm: true } });
-    if (r.ok) { toast("success", `Delivered to ${confirm.studentName}`); setConfirm(null); void search(); } else { toast("error", r.message); setConfirm(null); }
+    if (r.ok) {
+      // Update just this card instead of searching again: saves re-reading the student's whole order list.
+      toast("success", `Delivered to ${confirm.studentName}`);
+      setResults((rs) => rs && rs.map((x) => (x.orderId === confirm.orderId ? { ...x, fulfillmentStatus: "DELIVERED", ready: false, notReadyReason: null } : x)));
+      setConfirm(null);
+    } else { toast("error", r.message); setConfirm(null); void search(); } // something changed under us (e.g. already delivered): show the true state
   };
 
   return (
     <div className="max-w-xl space-y-4">
-      <form onSubmit={search} className="flex items-end gap-2">
-        <div className="flex-1"><Input label="Reg number, email or order reference" value={q} onChange={(e) => setQ(e.target.value)} autoCapitalize="none" autoComplete="off" hint="Any one of them finds the student's orders." /></div>
-        <Button type="submit" loading={busy} disabled={q.trim().length < 3} aria-label="Search" icon={<Search className="size-4" />}>Find</Button>
+      <form suppressHydrationWarning onSubmit={search} className="space-y-1.5">
+        {/* The hint sits BELOW the row (not inside the input's wrapper), so the button lines up with the input box itself. */}
+        <div className="flex items-end gap-2">
+          <div className="min-w-0 flex-1"><Input label="Reg number, email or order reference" value={q} onChange={(e) => setQ(e.target.value)} autoCapitalize="none" autoComplete="off" /></div>
+          <Button type="submit" loading={busy} disabled={q.trim().length < 3} aria-label="Search" icon={<Search className="size-4" />} className="shrink-0">Find</Button>
+        </div>
+        <p className="text-xs text-[var(--muted)]">Any one of them finds the student&apos;s orders.</p>
       </form>
       {results && results.length === 0 && <EmptyState title="No matching orders" body="Check the number, or the order may belong to an item you aren't assigned to." />}
       {results?.map((r) => (

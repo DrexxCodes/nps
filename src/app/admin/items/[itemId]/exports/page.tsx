@@ -10,5 +10,5 @@ export const dynamic = "force-dynamic";
 export default async function ItemExports({ params }: { params: Promise<{ itemId: string }> }) {
   const user = await requirePageUser(ADMIN_ROLES);
   const item = await requireManageItem(user, (await params).itemId).catch(() => redirect("/forbidden"));
-  return <><PageTitle title={item.name} subtitle="Export paid orders as PDF" /><ItemTabs id={item.id} batched={item.batchProcessingEnabled} /><ExportForm items={[{ id: item.id, name: item.name }]} fixedItemId={item.id} /></>;
+  return <><PageTitle title={item.name} subtitle="Export paid orders as PDF" /><ItemTabs id={item.id} batched={item.batchProcessingEnabled} /><ExportForm items={[{ id: item.id, name: item.name }]} fixedItemId={item.id} physical={item.physical} /></>;
 }

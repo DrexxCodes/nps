@@ -7,7 +7,7 @@ export async function Navbar() {
   const links = [
     { href: "/", label: "Home" },
     ...(user ? [{ href: user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? "/admin" : user.role === "STAFF" ? "/staff" : "/dashboard", label: "Dashboard" }] : []),
-    { href: "/items", label: "Services" },
+    { href: "/items", label: "Items" },
     { href: "/journals", label: "Journals" },
     ...(user ? [{ href: "/dashboard/settings", label: "Profile settings" }] : []),
   ];

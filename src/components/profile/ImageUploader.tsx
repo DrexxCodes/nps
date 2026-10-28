@@ -9,7 +9,7 @@ import { api } from "@/lib/client/api";
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
 type Sig = { upload: { apiKey: string; cloudName: string; folder: string; public_id: string; timestamp: number; signature: string } };
 
-export function ImageUploader({ name, current, onDone }: { name: string; current?: string | null; onDone: (url: string) => void }) {
+export function ImageUploader({ name, current, seed, onDone }: { name: string; current?: string | null; seed?: string; onDone: (url: string) => void }) {
   const input = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(current ?? null);
   const [file, setFile] = useState<File | null>(null);
@@ -58,7 +58,7 @@ export function ImageUploader({ name, current, onDone }: { name: string; current
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-4" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pick(e.dataTransfer.files[0]); }}>
-        <Avatar name={name} src={preview} size={72} />
+        <Avatar name={name} src={preview} seed={seed} size={72} />
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" icon={<ImagePlus className="size-4" />} onClick={() => input.current?.click()}>Choose photo</Button>
           <label className="inline-flex"><input type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} /><span className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-[var(--line)] px-3 text-sm font-semibold hover:bg-[var(--accent-soft)]"><Camera className="size-4" /> Take photo</span></label>

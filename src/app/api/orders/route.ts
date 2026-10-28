@@ -1,10 +1,11 @@
 import { ok, route } from "@/lib/server/errors";
-import { db } from "@/lib/server/firebase-admin";
+import { trackedOrdersForUser } from "@/lib/server/queries";
 import { requireUser } from "@/lib/server/session";
 
+export const dynamic = "force-dynamic";
+
+/** The caller's own orders with live batch status. The orders screens poll this, so admin batch changes reach students without a refresh. */
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
-  const snap = await db().collection("orders").where("userId", "==", user.uid).get();
-  const orders = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as { id: string; createdAt: number }).sort((a, b) => b.createdAt - a.createdAt);
-  return ok({ orders });
+  return ok({ orders: await trackedOrdersForUser(user.uid) }, 200);
 });

@@ -12,15 +12,19 @@
     "test": "vitest run",
     "bootstrap:super-admin": "node --env-file=.env.local scripts/bootstrap-super-admin.mjs",
     "backfill:dars": "node --env-file=.env.local scripts/backfill-dars-fields.mjs",
-    "backfill:sales": "node --env-file=.env.local scripts/backfill-sales-stats.mjs"
+    "backfill:sales": "node --env-file=.env.local scripts/backfill-sales-stats.mjs",
+    "app": "pnpm run build && pnpm run start"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.900.0",
+    "@dicebear/core": "^9.4.3",
+    "@dicebear/lorelei": "^9.4.2",
     "@hookform/resolvers": "^5.2.0",
     "@react-pdf/renderer": "^4.3.0",
     "@some19ice/nigeria-geo-core": "^0.1.4",
     "firebase": "^12.4.0",
     "firebase-admin": "^13.5.0",
+    "lenis": "^1.3.11",
     "lucide-react": "^0.545.0",
     "next": "^16.0.0",
     "react": "^19.2.0",

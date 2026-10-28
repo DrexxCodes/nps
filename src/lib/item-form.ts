@@ -20,7 +20,7 @@ const fillClassPrices = (years: number[], saved?: ClassPrice[]): ClassPriceField
 export const emptyItemValues = (years: number[]): ItemFormValues => ({
   name: "", description: "", status: "DRAFT", startAt: "", endAt: "", hasSubItems: false, priceNaira: 0, subItems: [],
   classPricingEnabled: false, classPrices: blankClassPrices(years), variantSets: [],
-  requiredProfileFields: [], batchProcessingEnabled: false, batchSize: 50, batchLimitEnabled: false, maxBatches: 5, nfcEnabled: false, nfcPayloadFields: ["PROFILE_URL"],
+  requiredProfileFields: [], physical: true, batchProcessingEnabled: false, batchSize: 50, batchLimitEnabled: false, maxBatches: 5, nfcEnabled: false, nfcPayloadFields: ["PROFILE_URL"],
 });
 
 export const toFormValues = (item: Item, years: number[]): ItemFormValues => ({
@@ -29,7 +29,7 @@ export const toFormValues = (item: Item, years: number[]): ItemFormValues => ({
   classPricingEnabled: item.classPrices.length > 0 || item.subItems.some((s) => (s.classPrices?.length ?? 0) > 0),
   classPrices: fillClassPrices(years, item.classPrices),
   variantSets: item.variantSets.map((v) => ({ id: v.id, name: v.name, selection: v.selection, required: v.required, options: v.options.map((o) => ({ id: o.id, label: o.label })) })),
-  requiredProfileFields: item.requiredProfileFields, batchProcessingEnabled: item.batchProcessingEnabled, batchSize: item.batchSize,
+  requiredProfileFields: item.requiredProfileFields, physical: item.physical, batchProcessingEnabled: item.batchProcessingEnabled, batchSize: item.batchSize,
   batchLimitEnabled: item.batchLimitEnabled, maxBatches: item.maxBatches, nfcEnabled: item.nfcEnabled, nfcPayloadFields: item.nfcPayloadFields,
 });
 
@@ -46,8 +46,9 @@ export function toItemPayload(v: ItemFormValues) {
     classPrices: byClass && !v.hasSubItems ? classPriceList(v.classPrices) : [],
     subItems: v.hasSubItems ? v.subItems.map((s) => ({ id: s.id, name: s.name, description: s.description, priceKobo: nairaToKobo(Number(s.priceNaira)), required: s.required, classPrices: byClass ? classPriceList(s.classPrices) : [] })) : [],
     variantSets: v.variantSets.map((s) => ({ id: s.id, name: s.name.trim(), selection: s.selection, required: s.required, options: s.options.map((o) => ({ id: o.id, label: o.label.trim() })) })),
-    requiredProfileFields: v.requiredProfileFields, batchProcessingEnabled: v.batchProcessingEnabled, batchSize: Number(v.batchSize), batchLimitEnabled: v.batchLimitEnabled, maxBatches: Number(v.maxBatches),
-    nfcEnabled: v.nfcEnabled, nfcPayloadFields: v.nfcPayloadFields.length ? v.nfcPayloadFields : ["PROFILE_URL"],
+    requiredProfileFields: v.requiredProfileFields, physical: v.physical,
+    batchProcessingEnabled: v.physical && v.batchProcessingEnabled, batchSize: Number(v.batchSize), batchLimitEnabled: v.batchLimitEnabled, maxBatches: Number(v.maxBatches),
+    nfcEnabled: v.physical && v.nfcEnabled, nfcPayloadFields: v.nfcPayloadFields.length ? v.nfcPayloadFields : ["PROFILE_URL"],
   };
 }
 

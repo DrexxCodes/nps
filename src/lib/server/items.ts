@@ -9,7 +9,7 @@ export function toItem(snap: DocumentSnapshot<DocumentData>): Item {
   return {
     id: snap.id, name: d.name, description: d.description ?? "", coverImageUrl: d.coverImageUrl ?? null, ownerAdminId: d.ownerAdminId,
     status: d.status, startAt: d.startAt ?? null, endAt: d.endAt ?? null, hasSubItems: !!d.hasSubItems, subItems: ((d.subItems ?? []) as SubItem[]).map((s) => ({ ...s, classPrices: s.classPrices ?? [] })),
-    basePriceKobo: d.basePriceKobo ?? 0, classPrices: d.classPrices ?? [], variantSets: d.variantSets ?? [], requiredProfileFields: d.requiredProfileFields ?? [], batchProcessingEnabled: !!d.batchProcessingEnabled,
+    basePriceKobo: d.basePriceKobo ?? 0, classPrices: d.classPrices ?? [], variantSets: d.variantSets ?? [], requiredProfileFields: d.requiredProfileFields ?? [], physical: d.physical !== false, batchProcessingEnabled: !!d.batchProcessingEnabled,
     batchSize: d.batchSize ?? 50, batchLimitEnabled: !!d.batchLimitEnabled, maxBatches: d.maxBatches ?? 1, nfcEnabled: !!d.nfcEnabled,
     nfcPayloadFields: d.nfcPayloadFields ?? [], assignedStaffIds: d.assignedStaffIds ?? [], createdAt: d.createdAt ?? 0, updatedAt: d.updatedAt ?? 0,
   };
@@ -19,6 +19,13 @@ export async function loadItem(itemId: string): Promise<Item> {
   const snap = await db().doc(`items/${itemId}`).get();
   if (!snap.exists) throw new AppError("NOT_FOUND");
   return toItem(snap);
+}
+
+/** Several items in ONE batched read. Missing items map to null. */
+export async function loadItems(ids: string[]): Promise<Map<string, Item | null>> {
+  const unique = [...new Set(ids)];
+  const snaps = unique.length ? await db().getAll(...unique.map((id) => db().doc(`items/${id}`))) : [];
+  return new Map(unique.map((id, i) => [id, snaps[i]?.exists ? toItem(snaps[i]!) : null]));
 }
 
 /** Super Admin: any item. Admin: own items. */

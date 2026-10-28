@@ -12,4 +12,4 @@ export function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/dashboard/:path*", "/admin/:path*", "/staff/:path*"] };
+export const config = { matcher: ["/dashboard/:path*", "/admin/:path*", "/staff/:path*", "/items/:path*"] };

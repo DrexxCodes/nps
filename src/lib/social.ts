@@ -28,3 +28,13 @@ export function normalizeSocialUrl(platform: SocialPlatform, input: string): str
     return null;
   }
 }
+
+/** Short human label for a stored social URL, e.g. "instagram.com/drexxtech" (no scheme, no www, no trailing slash). */
+export function socialDisplay(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.hostname.replace(/^www\./, "")}${u.pathname}`.replace(/\/+$/, "");
+  } catch {
+    return url;
+  }
+}

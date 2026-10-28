@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Badge, FulfillmentBadge, PaymentBadge } from "@/components/ui/Badge";
-import { buttonClass } from "@/components/ui/Button";
+import { Badge, PaymentBadge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { EmptyState, PageTitle } from "@/components/ui/States";
+import { LiveOrders } from "@/components/student/LiveOrders";
+import { PageTitle } from "@/components/ui/States";
 import { formatNaira } from "@/lib/money";
 import { derivedAcademicYear, getUserDoc } from "@/lib/server/profile";
-import { batchStatus, ordersForUser, transactionsForUser } from "@/lib/server/queries";
+import { trackedOrdersForUser, transactionsForUser } from "@/lib/server/queries";
 import { requirePageUser } from "@/lib/server/session";
 import { getPlatformSettings } from "@/lib/server/settings";
 import { isPurchasable } from "@/lib/item-status";
@@ -19,9 +19,9 @@ export const metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
-  const user = await requirePageUser(["STUDENT"]);
+  const user = await requirePageUser();
   const [u, settings, orders, txns, itemsSnap] = await Promise.all([
-    getUserDoc(user.uid), getPlatformSettings(), ordersForUser(user.uid), transactionsForUser(user.uid),
+    getUserDoc(user.uid), getPlatformSettings(), trackedOrdersForUser(user.uid), transactionsForUser(user.uid),
     db().collection("items").where("status", "in", ["ACTIVE", "SCHEDULED"]).get(),
   ]);
   if (!u) return null;
@@ -30,8 +30,6 @@ export default async function Dashboard() {
   const birthday = typeof u.dateOfBirth === "string" && u.dateOfBirth.slice(5) === today;
   const steps = [!!u.profileImageUrl, !!u.admissionNumber, !!u.bio, !!u.stateOfOrigin, u.emergencyContacts?.length > 0];
   const completion = Math.round((steps.filter(Boolean).length / steps.length) * 100);
-  const recent = orders.slice(0, 3);
-  const statuses = await Promise.all(recent.map((o) => batchStatus(o.itemId, o.batchId)));
   const items = itemsSnap.docs.map(toItem).filter((i) => isPurchasable(i)).slice(0, 3).map((i) => toStudentItem(i, year));
 
   return (
@@ -45,13 +43,7 @@ export default async function Dashboard() {
       </div>
 
       <h2 className="mb-3 mt-8 font-display text-xl font-bold">Recent orders</h2>
-      {recent.length === 0 ? <EmptyState title="No orders yet" body="Your paid items and their pickup status will show here." action={<Link href="/items" className={buttonClass()}>Browse services</Link>} /> : (
-        <div className="space-y-3">{recent.map((o, i) => (
-          <Card key={o.id} className="flex flex-wrap items-center justify-between gap-3">
-            <div><p className="font-semibold">{o.itemNameSnapshot}</p><p className="text-xs text-[var(--muted)]">{o.batchNumber ? `Batch ${o.batchNumber} · ` : ""}{o.reference}</p></div>
-            <FulfillmentBadge fulfillment={o.fulfillmentStatus} batchStatus={statuses[i]} batched={!!o.batchId} />
-          </Card>))}</div>
-      )}
+      <LiveOrders initial={orders.slice(0, 3)} compact limit={3} />
 
       <h2 className="mb-3 mt-8 font-display text-xl font-bold">Recent payments</h2>
       {txns.length === 0 ? <p className="text-sm text-[var(--muted)]">No payments yet.</p> : <div className="space-y-2">{txns.slice(0, 3).map((t) => <Card key={t.id} className="flex items-center justify-between py-3"><span className="text-sm">{t.itemNameSnapshot}</span><span className="flex items-center gap-3"><b>{formatNaira(t.amountKobo)}</b><PaymentBadge status={t.status} /></span></Card>)}</div>}

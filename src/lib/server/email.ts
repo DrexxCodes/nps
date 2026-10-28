@@ -32,7 +32,7 @@ export const birthdayEmail = (name: string, to: string): Email => ({
 });
 
 export const paymentEmail = (p: { name: string; to: string; item: string; reference: string; amount: string }): Email => ({
-  to: p.to, subject: `Payment received: ${p.item}`,
+  to: p.to, subject: `Payment received: ${p.item.replace(/\s+/g, " ").trim()}`,
   text: `Hi ${p.name}, we received your payment of ${p.amount} for ${p.item}. Reference: ${p.reference}. Track your order in your dashboard.`,
   html: wrap("Payment received", `<p>Hi ${esc(p.name)}, we received your payment of <b>${esc(p.amount)}</b> for <b>${esc(p.item)}</b>.</p><p>Reference: <code>${esc(p.reference)}</code></p><p>Track your order from your NPS dashboard.</p>`),
 });

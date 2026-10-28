@@ -9,7 +9,8 @@ export type NfcField = (typeof NFC_FIELDS)[number];
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
 export type VariantSelectionMode = (typeof VARIANT_SELECTION_MODES)[number];
 export type PaymentStatus = "PENDING" | "INITIALIZED" | "SUCCESSFUL" | "FAILED" | "ABANDONED" | "REVERSED" | "REFUNDED";
-export type FulfillmentStatus = "AWAITING" | "DELIVERED";
+/** NOT_REQUIRED: the item has no physical collection (e.g. dues), so the payment is the whole order. */
+export type FulfillmentStatus = "AWAITING" | "DELIVERED" | "NOT_REQUIRED";
 
 export interface PlatformSettings {
   enrollmentOpen: boolean;
@@ -76,6 +77,8 @@ export interface Item {
   classPrices: ClassPrice[];
   variantSets: VariantSet[];
   requiredProfileFields: RequirementType[];
+  /** false = nothing to collect (dues, fees): no batches, NFC or pickup; students just see that they have paid. Older items read as true. */
+  physical: boolean;
   batchProcessingEnabled: boolean;
   batchSize: number;
   batchLimitEnabled: boolean;
@@ -112,7 +115,7 @@ export interface PublicProfile {
   fullName: string;
   admissionNumber: string;
   profileImageUrl: string | null;
-  /** The uploaded photo, or a DiceBear Micah avatar until they upload one. Always safe to render. */
+  /** The uploaded photo, or a generated DiceBear Lorelei avatar until they upload one. Always safe to render. */
   avatarUrl: string;
   academicYear: number | null;
   bio: string;

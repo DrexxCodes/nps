@@ -1,7 +1,7 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { GraduationCap, Users } from "lucide-react";
-import { useState } from "react";
+import { Check, GraduationCap, Users } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +22,9 @@ const TYPES: { id: AdmissionType; title: string; sub: string; Icon: typeof Users
 
 export function EnrollForm() {
   const [type, setType] = useState<AdmissionType | null>(null);
+  const [picked, setPicked] = useState<AdmissionType | null>(null); // shows the selected state for a beat before the form opens
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
   const [serverError, setServerError] = useState<string | null>(null);
   const { register, handleSubmit, watch, setError, setValue, formState: { errors, isSubmitting } } = useForm<Values>({
     resolver: zodResolver(enrollmentSchema), defaultValues: { noAdmissionNumber: false, acceptTerms: undefined as unknown as true },
@@ -53,9 +56,12 @@ export function EnrollForm() {
         <p className="text-sm text-[var(--muted)]">How were you admitted?</p>
         <div className="grid gap-3 sm:grid-cols-2">
           {TYPES.map(({ id, title, sub, Icon }) => (
-            <button key={id} onClick={() => { setType(id); setValue("admissionType", id); }} className="glass flex items-center gap-4 rounded-2xl p-5 text-left transition hover:border-[var(--accent)]">
-              <span className="grid size-12 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]"><Icon className="size-6" /></span>
+            <button key={id} type="button" aria-pressed={picked === id} disabled={!!picked && picked !== id}
+              onClick={() => { setPicked(id); setValue("admissionType", id); timer.current = setTimeout(() => setType(id), 320); }}
+              className="choice-card group glass relative flex items-center gap-4 rounded-2xl p-5 text-left transition duration-200 enabled:hover:-translate-y-0.5 enabled:active:translate-y-0 enabled:active:scale-[0.98] disabled:opacity-50">
+              <span className={`grid size-12 place-items-center rounded-xl transition duration-200 group-hover:bg-[var(--accent)] group-hover:text-[var(--accent-fg)] group-focus-visible:bg-[var(--accent)] group-focus-visible:text-[var(--accent-fg)] ${picked === id ? "bg-[var(--accent)] text-[var(--accent-fg)]" : "bg-[var(--accent-soft)] text-[var(--accent)]"}`}><Icon className="size-6" /></span>
               <span><span className="block font-display text-lg font-bold">{title}</span><span className="text-sm text-[var(--muted)]">{sub}</span></span>
+              <span aria-hidden className={`absolute right-3 top-3 grid size-6 place-items-center rounded-full bg-[var(--accent)] text-[var(--accent-fg)] transition duration-200 ${picked === id ? "scale-100 opacity-100" : "scale-50 opacity-0"}`}><Check className="size-4" /></span>
             </button>
           ))}
         </div>
@@ -64,8 +70,8 @@ export function EnrollForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      <p className="text-sm">Admission type: <b>{type === "REGULAR" ? "Regular" : "CEP"}</b> · <button type="button" className="text-[var(--accent)] hover:underline" onClick={() => setType(null)}>Change</button></p>
+    <form suppressHydrationWarning onSubmit={onSubmit} className="space-y-4" noValidate>
+      <p className="text-sm">Admission type: <b>{type === "REGULAR" ? "Regular" : "CEP"}</b> · <button type="button" className="text-[var(--accent)] hover:underline" onClick={() => { setType(null); setPicked(null); }}>Change</button></p>
       <Input label="Full name" autoComplete="name" error={errors.fullName?.message} {...register("fullName")} />
       <Input label="Username" autoComplete="username" autoCapitalize="none" error={errors.username?.message} {...register("username")} />
       <div className="grid gap-4 sm:grid-cols-2">

@@ -17,6 +17,13 @@ export function darsStudentDoc(input: { uid: string; name: string; email: string
 /** A DARS-created account has no NPS profile yet (no `role`); it is filled in on first NPS sign-in. */
 export const needsNpsProfile = (u: { role?: unknown }): boolean => u.role === undefined || u.role === null;
 
+/**
+ * An NPS account whose DARS registration number was added in DARS (it had none when it arrived from NPS) and so has no
+ * NPS admission number yet. The two are the same 10 digits; NPS links them the next time the account loads.
+ */
+export const needsAdmissionLink = (u: { role?: unknown; regNumber?: unknown; admissionNumber?: unknown }): boolean =>
+  !needsNpsProfile(u) && !u.admissionNumber && typeof u.regNumber === "string" && /^\d{10}$/.test(u.regNumber);
+
 export function admissionTypeOf(regNumber: string | null): AdmissionType | null {
   if (!regNumber || !/^\d{10}$/.test(regNumber)) return null;
   const code = regNumber.slice(4, 7);

@@ -42,7 +42,7 @@ export function ItemForm({ item, courseYears }: { item?: Item; courseYears: numb
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={onSubmit} className="max-w-2xl space-y-5 lg:grid lg:max-w-none lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0">
+      <form suppressHydrationWarning onSubmit={onSubmit} className="max-w-2xl space-y-5 lg:grid lg:max-w-none lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0">
         <div className="space-y-5">
           <Card className="space-y-4">
             <Input label="Item name" error={errors.name?.message} {...register("name", { required: "Enter a name" })} />
@@ -78,7 +78,13 @@ export function ItemForm({ item, courseYears }: { item?: Item; courseYears: numb
             {REQUIREMENT_TYPES.map((r) => <Checkbox key={r} label={REQUIREMENT_LABELS[r]} checked={w.requiredProfileFields.includes(r)} onChange={() => list("requiredProfileFields", r)} />)}
           </Card>
 
-          <Card className="space-y-4">
+          <Card className="space-y-3">
+            <h2 className="font-display text-lg font-bold">Collection</h2>
+            <Checkbox label="This is a physical item that students collect" {...register("physical")} />
+            {!w.physical && <p className="rounded-xl bg-[var(--accent-soft)] p-3 text-sm">No collection needed (dues, fees, registrations). Students only see that they have paid. There are no batches, pickup or NFC, and you can export the paid orders from the Exports tab whenever you need them.</p>}
+          </Card>
+
+          {w.physical && <Card className="space-y-4">
             <h2 className="font-display text-lg font-bold">Batches</h2>
             <Checkbox label="Process in batches" {...register("batchProcessingEnabled")} />
             {w.batchProcessingEnabled && <>
@@ -86,14 +92,14 @@ export function ItemForm({ item, courseYears }: { item?: Item; courseYears: numb
               <Checkbox label="Limit the number of batches" {...register("batchLimitEnabled")} />
               {w.batchLimitEnabled && <Input label="Maximum batches" type="number" min={1} {...register("maxBatches", { valueAsNumber: true })} />}
             </>}
-          </Card>
+          </Card>}
 
-          <Card className="space-y-3">
+          {w.physical && <Card className="space-y-3">
             <h2 className="font-display text-lg font-bold">NFC</h2>
             <Checkbox label="This item needs NFC card encoding" {...register("nfcEnabled")} />
             {w.nfcEnabled && NFC_FIELDS.map((f) => <Checkbox key={f} label={NFC_LABEL[f]} checked={w.nfcPayloadFields.includes(f)} onChange={() => list("nfcPayloadFields", f)} />)}
             {w.nfcEnabled && <p className="text-xs text-[var(--muted)]">The profile URL is the recommended default. Never encode sensitive details you don't need.</p>}
-          </Card>
+          </Card>}
         </div>
 
         <div className="lg:col-span-2"><AdvancedConfig years={years} /></div>

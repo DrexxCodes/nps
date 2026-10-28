@@ -6,7 +6,7 @@ import type { Item } from "@/types";
 const item = (over: Partial<Item> = {}): Item => ({
   id: "i1", name: "Hoodie", description: "", coverImageUrl: null, ownerAdminId: "a1", status: "ACTIVE", startAt: null, endAt: null, hasSubItems: false, subItems: [],
   basePriceKobo: 500000, classPrices: [{ year: 1, priceKobo: 400000 }, { year: 3, priceKobo: 600000 }], variantSets: [], requiredProfileFields: [],
-  batchProcessingEnabled: false, batchSize: 50, batchLimitEnabled: false, maxBatches: 1, nfcEnabled: false, nfcPayloadFields: [], assignedStaffIds: [], createdAt: 0, updatedAt: 0, ...over,
+  physical: true, batchProcessingEnabled: false, batchSize: 50, batchLimitEnabled: false, maxBatches: 1, nfcEnabled: false, nfcPayloadFields: [], assignedStaffIds: [], createdAt: 0, updatedAt: 0, ...over,
 });
 
 describe("class pricing", () => {

@@ -1,5 +1,7 @@
 import "server-only";
 import { FieldPath } from "firebase-admin/firestore";
+import type { TrackedOrder } from "@/lib/tracking";
+import { describeVariants } from "@/lib/variants";
 import { db } from "./firebase-admin";
 
 type Row = Record<string, any> & { id: string }; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -14,6 +16,31 @@ export const transactionsForUser = async (uid: string) => rows((await db().colle
 export async function batchStatus(itemId: string, batchId: string | null): Promise<string | null> {
   if (!batchId) return null;
   return ((await db().doc(`items/${itemId}/batches/${batchId}`).get()).data()?.status as string) ?? null;
+}
+
+/** Live batch status for a set of orders, keyed `${itemId}/${batchId}`. One read per distinct batch (an orders page has a handful), never one per order or student. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function batchStatusFor(orders: Record<string, any>[]): Promise<Map<string, string | null>> {
+  const keys = [...new Set(orders.filter((o) => o.batchId).map((o) => `${o.itemId}/${o.batchId}`))];
+  const snaps = keys.length ? await db().getAll(...keys.map((k) => { const [itemId, batchId] = k.split("/"); return db().doc(`items/${itemId}/batches/${batchId}`); })) : [];
+  return new Map(keys.map((k, i) => [k, (snaps[i]?.data()?.status as string | undefined) ?? null]));
+}
+
+/**
+ * A user's orders with each one's batch status read live from the batch document, so what a student sees always matches what the
+ * admin set. One read per distinct batch (not per order).
+ */
+export async function trackedOrdersForUser(uid: string): Promise<TrackedOrder[]> {
+  const orders = await ordersForUser(uid);
+  const keys = [...new Set(orders.filter((o) => o.batchId).map((o) => `${o.itemId}/${o.batchId}`))];
+  const snaps = keys.length ? await db().getAll(...keys.map((k) => { const [itemId, batchId] = k.split("/"); return db().doc(`items/${itemId}/batches/${batchId}`); })) : [];
+  const status = new Map(keys.map((k, i) => [k, (snaps[i]?.data()?.status as string | undefined) ?? null]));
+  return orders.map((o) => ({
+    id: o.id, itemId: o.itemId, itemName: o.itemNameSnapshot, reference: o.reference, paidAt: o.paidAt, totalKobo: o.totalAmount,
+    subItems: ((o.selectedSubItems ?? []) as { name: string }[]).map((s) => s.name), options: describeVariants(o.selectedVariants ?? []),
+    paymentStatus: o.paymentStatus, fulfillmentStatus: o.fulfillmentStatus, physical: o.physical !== false, batched: !!o.batchId,
+    batchNumber: o.batchNumber ?? null, batchStatus: o.batchId ? (status.get(`${o.itemId}/${o.batchId}`) ?? null) : null, batchPending: !!o.batchPending, deliveredAt: o.deliveredAt ?? null,
+  }));
 }
 
 export const ORDERS_PAGE_SIZE = 20;

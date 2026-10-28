@@ -10,7 +10,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['spotix.drexxtech-preview.name.ng'],
+  allowedDevOrigins: ['nps.drexxtech-preview.name.ng'],
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ["@react-pdf/renderer", "firebase-admin"],

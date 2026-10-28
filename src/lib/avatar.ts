@@ -1,3 +1,8 @@
-/** Default profile picture for students who haven't uploaded one: DiceBear's "Micah" style, deterministic per seed. */
-export const micahAvatarUrl = (seed: string): string =>
-  `https://api.dicebear.com/9.x/micah/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+/**
+ * Default profile picture for people who haven't uploaded one: a DiceBear "Lorelei" avatar generated on our own server
+ * (`/api/avatar/[seed]`, using the locally installed @dicebear packages, no third-party request). Deterministic per seed.
+ * Once a real photo is saved it is used instead and this is never requested.
+ */
+export const defaultAvatarUrl = (seed: string): string => `/api/avatar/${encodeURIComponent(seed)}`;
+
+export const AVATAR_SEED_PATTERN = /^[\w .@+-]{1,100}$/;

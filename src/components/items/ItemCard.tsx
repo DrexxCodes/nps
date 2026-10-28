@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { formatNaira } from "@/lib/money";
 import type { Item } from "@/types";
 
-export function ItemCard({ item }: { item: Pick<Item, "id" | "name" | "description" | "coverImageUrl" | "hasSubItems" | "subItems" | "basePriceKobo" | "batchProcessingEnabled" | "endAt"> }) {
+export function ItemCard({ item }: { item: Pick<Item, "id" | "name" | "description" | "coverImageUrl" | "hasSubItems" | "subItems" | "basePriceKobo" | "batchProcessingEnabled" | "endAt"> & { physical?: boolean } }) {
   const from = item.hasSubItems ? item.subItems.filter((s) => s.required).reduce((n, s) => n + s.priceKobo, 0) || Math.min(...item.subItems.map((s) => s.priceKobo)) : item.basePriceKobo;
   return (
     <Link href={`/items/${item.id}`} className="glass group flex flex-col overflow-hidden rounded-2xl transition hover:-translate-y-0.5">
@@ -19,6 +19,7 @@ export function ItemCard({ item }: { item: Pick<Item, "id" | "name" | "descripti
           <span className="font-semibold">{item.hasSubItems ? "From " : ""}{formatNaira(from)}</span>
           <span className="flex gap-1.5">
             {item.hasSubItems && <Badge tone="gray"><Layers className="mr-1 size-3" />Bundle</Badge>}
+            {item.physical === false && <Badge tone="blue">No pickup</Badge>}
             {item.endAt && <Badge tone="amber">Ends {new Date(item.endAt).toLocaleDateString("en-NG", { day: "numeric", month: "short" })}</Badge>}
           </span>
         </div>

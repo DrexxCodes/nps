@@ -12,6 +12,6 @@ export interface ItemFormValues {
   hasSubItems: boolean; priceNaira: number; subItems: SubItemField[];
   /** Advanced configuration */
   classPricingEnabled: boolean; classPrices: ClassPriceField[]; variantSets: VariantSetField[];
-  requiredProfileFields: RequirementType[]; batchProcessingEnabled: boolean; batchSize: number; batchLimitEnabled: boolean; maxBatches: number;
+  requiredProfileFields: RequirementType[]; physical: boolean; batchProcessingEnabled: boolean; batchSize: number; batchLimitEnabled: boolean; maxBatches: number;
   nfcEnabled: boolean; nfcPayloadFields: NfcField[];
 }

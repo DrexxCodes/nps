@@ -7,8 +7,8 @@ import { requireUser } from "@/lib/server/session";
 export const GET = route(async (req: Request, ctx: { params: Promise<{ itemId: string }> }) => {
   const { itemId } = await ctx.params;
   const sub = new URL(req.url).searchParams.get("sub");
-  const user = await requireUser(req).catch(() => null); // signed-out visitors are quoted the initial price
-  const admissionNumber = user ? ((await getUserDoc(user.uid))?.admissionNumber ?? null) : null;
+  const user = await requireUser(req); // 401 for signed-out callers: prices are only shown to signed-in users
+  const admissionNumber = (await getUserDoc(user.uid))?.admissionNumber ?? null;
   const { pricing } = await quote(itemId, sub ? sub.split(",").filter(Boolean) : [], admissionNumber);
   return ok({ pricing });
 });

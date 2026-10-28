@@ -53,7 +53,7 @@ export async function initializeCheckout(user: SessionUser, input: { itemId: str
   if (!variantCheck.ok) throw new AppError("VALIDATION_ERROR", { variants: Object.values(variantCheck.errors)[0] ?? "Check your selections" });
 
   const { pricing, chosen, classYear } = await quote(item.id, input.subItemIds, profile.admissionNumber ?? null);
-  if (item.batchProcessingEnabled) await reconcileExpired(item.id);
+  if (item.physical && item.batchProcessingEnabled) await reconcileExpired(item.id);
 
   const orderId = db().collection("orders").doc().id;
   let reference = "";
@@ -66,7 +66,7 @@ export async function initializeCheckout(user: SessionUser, input: { itemId: str
       const itemRef = db().doc(`items/${item.id}`);
       const [refSnap, itemSnap, batchesSnap] = await Promise.all([
         tx.get(refDoc), tx.get(itemRef),
-        item.batchProcessingEnabled ? tx.get(db().collection(`items/${item.id}/batches`).orderBy("batchNumber")) : Promise.resolve(null),
+        item.physical && item.batchProcessingEnabled ? tx.get(db().collection(`items/${item.id}/batches`).orderBy("batchNumber")) : Promise.resolve(null),
       ]);
       if (refSnap.exists) return "COLLISION" as const;
       const fresh = toItem(itemSnap);
@@ -74,7 +74,7 @@ export async function initializeCheckout(user: SessionUser, input: { itemId: str
 
       let bId: string | null = null;
       let bNum: number | null = null;
-      if (fresh.batchProcessingEnabled && batchesSnap) {
+      if (fresh.physical && fresh.batchProcessingEnabled && batchesSnap) {
         const open = batchesSnap.docs.find((b) => { const d = b.data(); return d.status === "QUEUED" && d.paidCount + d.reservedCount < d.maxOrders; });
         if (open) {
           bId = open.id; bNum = open.data().batchNumber;
@@ -97,7 +97,7 @@ export async function initializeCheckout(user: SessionUser, input: { itemId: str
       };
       tx.set(refDoc, { ...base, webhookProcessedAt: null });
       tx.set(db().doc(`transactions/${reference}`), {
-        ...base, ownerAdminId: item.ownerAdminId, itemNameSnapshot: item.name, selectedSubItems: chosen, selectedVariants: variantCheck.chosen, classYear, batchId: bId, batchNumber: bNum,
+        ...base, ownerAdminId: item.ownerAdminId, itemNameSnapshot: item.name, physical: fresh.physical, selectedSubItems: chosen, selectedVariants: variantCheck.chosen, classYear, batchId: bId, batchNumber: bNum,
         subtotalKobo: pricing.subtotalKobo, platformFeeKobo: pricing.platformFeeKobo, otherFeesKobo: pricing.otherFeesKobo, feeSnapshot: pricing.feeSnapshot,
       });
       placed.batchNumber = bNum;
@@ -110,14 +110,14 @@ export async function initializeCheckout(user: SessionUser, input: { itemId: str
   try {
     const res = await initializeTransaction({
       email: profile.email, amountKobo: pricing.totalKobo, reference,
-      callbackUrl: `${env().NEXT_PUBLIC_APP_URL}/dashboard/orders?reference=${reference}`, metadata: { userId: user.uid, itemId: item.id },
+      callbackUrl: `${env().NEXT_PUBLIC_APP_URL}/dashboard/receipt?reference=${reference}`, metadata: { userId: user.uid, itemId: item.id },
     });
     // Paystack's own message says exactly why (e.g. "Invalid key", "Invalid Amount Sent", "Invalid callback url"): keep it in the log.
     if (!res.status) throw new Error(`Paystack rejected initialization (HTTP ${res.httpStatus}): ${res.message}`);
     await Promise.all(["References", "transactions"].map((c) => db().doc(`${c}/${reference}`).update({ status: "INITIALIZED", updatedAt: Date.now(), statusHistory: hist("INITIALIZED") })));
     return { reference, authorizationUrl: res.data.authorization_url, pricing, batchNumber: placed.batchNumber };
   } catch (e) {
-    console.error("[payments] initialize failed", reference, e instanceof Error ? e.message : "unknown", { amountKobo: pricing.totalKobo, callbackUrl: `${env().NEXT_PUBLIC_APP_URL}/dashboard/orders` });
+    console.error("[payments] initialize failed", reference, e instanceof Error ? e.message : "unknown", { amountKobo: pricing.totalKobo, callbackUrl: `${env().NEXT_PUBLIC_APP_URL}/dashboard/receipt` });
     await releaseReservation(reference, "FAILED");
     throw new AppError("PAYMENT_INITIALIZATION_FAILED");
   }
@@ -199,10 +199,11 @@ export async function confirmPayment(reference: string, pt: PaystackTransaction,
     }
 
     const now = Date.now();
+    const physical = t.physical !== false; // transactions from before this flag existed were all physical
     tx.set(db().doc(`orders/${t.orderId}`), {
       userId: t.userId, itemId: t.itemId, itemOwnerId: t.ownerAdminId, reference, selectedSubItems: t.selectedSubItems, selectedVariants: t.selectedVariants ?? [], classYear: t.classYear ?? null, itemNameSnapshot: t.itemNameSnapshot,
       subtotal: t.subtotalKobo, platformFee: t.platformFeeKobo, otherFees: t.otherFeesKobo, totalAmount: t.amountKobo, currency: t.currency,
-      paymentStatus: "SUCCESSFUL", fulfillmentStatus: "AWAITING", batchId, batchNumber, batchPending, emailStatus: "PENDING",
+      paymentStatus: "SUCCESSFUL", physical, fulfillmentStatus: physical ? "AWAITING" : "NOT_REQUIRED", batchId, batchNumber, batchPending, emailStatus: "PENDING",
       createdAt: t.createdAt, paidAt: now, deliveredAt: null, deliveredBy: null, updatedAt: now,
     });
     const ledger = (suffix: string, e: Record<string, unknown>) => tx.set(db().doc(`financialLedger/${reference}_${suffix}`), { eventType: suffix, orderId: t.orderId, withdrawalId: null, currency: t.currency, status: "CONFIRMED", reference, createdAt: now, itemId: t.itemId, ...e });
@@ -210,7 +211,7 @@ export async function confirmPayment(reference: string, pt: PaystackTransaction,
     if (t.platformFeeKobo > 0) ledger("PLATFORM_FEE", { ownerAdminId: null, amountKobo: t.platformFeeKobo, direction: "CREDIT" });
     if (pt.fees && pt.fees > 0) ledger("PROCESSOR_FEE", { ownerAdminId: null, amountKobo: pt.fees, direction: "DEBIT" });
 
-    recordSale(tx, t.ownerAdminId, t.subtotalKobo); // same transaction as the order: exactly once, however many times verify/webhook/reconcile run
+    recordSale(tx, t.ownerAdminId, t.subtotalKobo, physical); // same transaction as the order: exactly once, however many times verify/webhook/reconcile run
 
     const patch = { status: "SUCCESSFUL" as PaymentStatus, paystackTransactionId: String(pt.id), verifiedAt: now, updatedAt: now, statusHistory: hist("SUCCESSFUL") };
     tx.update(refDoc, { ...patch, ...(source === "webhook" ? { webhookProcessedAt: now } : {}) });
@@ -223,13 +224,25 @@ export async function confirmPayment(reference: string, pt: PaystackTransaction,
   return { orderId: outcome.orderId, alreadyProcessed: outcome.already };
 }
 
-/** Retryable: only sends when the order has not been emailed yet. Never touches payment state. */
+const EMAIL_CLAIM_TTL_MS = 5 * 60_000;
+
+/**
+ * Retryable and safe to call concurrently (webhook, verify and receipt polling can all land within seconds).
+ * The order is claimed inside a transaction (PENDING/FAILED -> SENDING) so only one caller sends; a claim older than
+ * the TTL is treated as a crashed sender and can be taken over. Never touches payment state.
+ */
 export async function sendOrderEmail(orderId: string): Promise<void> {
   const orderRef: DocumentReference = db().doc(`orders/${orderId}`);
-  const order = (await orderRef.get()).data();
-  if (!order || order.emailStatus === "SENT" || order.emailStatus === "PREVIEWED") return;
+  const order = await db().runTransaction(async (tx) => {
+    const o = (await tx.get(orderRef)).data();
+    if (!o || o.emailStatus === "SENT" || o.emailStatus === "PREVIEWED") return null;
+    if (o.emailStatus === "SENDING" && Date.now() - (o.emailClaimedAt ?? 0) < EMAIL_CLAIM_TTL_MS) return null;
+    tx.update(orderRef, { emailStatus: "SENDING", emailClaimedAt: Date.now() });
+    return o;
+  });
+  if (!order) return;
   const user = await getUserDoc(order.userId);
-  if (!user) return;
+  if (!user) { await orderRef.update({ emailStatus: "PENDING" }); return; } // release the claim; nothing to send to yet
   try {
     const status = await sendEmail(paymentEmail({ name: user.fullName, to: user.email, item: order.itemNameSnapshot, reference: order.reference, amount: formatNaira(order.totalAmount) }));
     await orderRef.update({ emailStatus: status, emailSentAt: Date.now() });

@@ -54,6 +54,7 @@ export async function deliverOrder(user: SessionUser, item: Item, orderId: strin
     const o = snap.data();
     if (!o || o.itemId !== item.id) throw new AppError("NOT_FOUND");
     if (o.paymentStatus !== "SUCCESSFUL") throw new AppError("FORBIDDEN");
+    if (o.physical === false || o.fulfillmentStatus === "NOT_REQUIRED") throw new AppError("NO_COLLECTION_NEEDED");
     if (o.fulfillmentStatus === "DELIVERED") throw new AppError("ORDER_ALREADY_DELIVERED");
     if (item.batchProcessingEnabled) {
       const batch = o.batchId ? (await tx.get(db().doc(`items/${item.id}/batches/${o.batchId}`))).data() : null;

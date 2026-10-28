@@ -21,7 +21,7 @@ export const Input = forwardRef<HTMLInputElement, Common & WithTrailing & InputH
   return (
     <Wrap label={label} error={error} hint={hint} id={fid}>
       <div className="relative">
-        <input ref={ref} id={fid} aria-invalid={!!error} className={`${control} h-11 ${trailing ? "pr-11" : ""} ${className}`} {...rest} />
+        <input suppressHydrationWarning ref={ref} id={fid} aria-invalid={!!error} className={`${control} h-11 ${trailing ? "pr-11" : ""} ${className}`} {...rest} />
         {trailing && <div className="absolute inset-y-0 right-0 flex items-center pr-1.5">{trailing}</div>}
       </div>
     </Wrap>
@@ -30,12 +30,12 @@ export const Input = forwardRef<HTMLInputElement, Common & WithTrailing & InputH
 
 export const Select = forwardRef<HTMLSelectElement, Common & SelectHTMLAttributes<HTMLSelectElement>>(function Select({ label, error, hint, id, className = "", children, ...rest }, ref) {
   const fid = id ?? rest.name ?? label;
-  return <Wrap label={label} error={error} hint={hint} id={fid}><select ref={ref} id={fid} aria-invalid={!!error} className={`${control} h-11 ${className}`} {...rest}>{children}</select></Wrap>;
+  return <Wrap label={label} error={error} hint={hint} id={fid}><select suppressHydrationWarning ref={ref} id={fid} aria-invalid={!!error} className={`${control} h-11 ${className}`} {...rest}>{children}</select></Wrap>;
 });
 
 export const Textarea = forwardRef<HTMLTextAreaElement, Common & TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ label, error, hint, id, className = "", ...rest }, ref) {
   const fid = id ?? rest.name ?? label;
-  return <Wrap label={label} error={error} hint={hint} id={fid}><textarea ref={ref} id={fid} aria-invalid={!!error} className={`${control} py-2.5 min-h-24 ${className}`} {...rest} /></Wrap>;
+  return <Wrap label={label} error={error} hint={hint} id={fid}><textarea suppressHydrationWarning ref={ref} id={fid} aria-invalid={!!error} className={`${control} py-2.5 min-h-24 ${className}`} {...rest} /></Wrap>;
 });
 
 export function Checkbox({ label, className = "", ...rest }: { label: ReactNode } & InputHTMLAttributes<HTMLInputElement>) {

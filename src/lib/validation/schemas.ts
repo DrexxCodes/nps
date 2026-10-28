@@ -83,6 +83,7 @@ export const itemSchema = z.object({
   classPrices: classPricesSchema(1),
   variantSets: z.array(variantSetSchema).max(MAX_VARIANT_SETS).default([]),
   requiredProfileFields: z.array(z.enum(REQUIREMENT_TYPES)).default([]),
+  physical: z.boolean().default(true),
   batchProcessingEnabled: z.boolean().default(false),
   batchSize: z.number().int().min(1).max(100000).default(50),
   batchLimitEnabled: z.boolean().default(false),
@@ -91,7 +92,9 @@ export const itemSchema = z.object({
   nfcPayloadFields: z.array(z.enum(NFC_FIELDS)).default(["PROFILE_URL"]),
 }).refine((v) => !v.startAt || !v.endAt || v.endAt > v.startAt, { path: ["endAt"], message: "End must be after start" })
   .refine((v) => (v.hasSubItems ? v.subItems.length > 0 : v.basePriceKobo > 0), { path: ["basePriceKobo"], message: "Set a price or add sub-items" })
-  .refine((v) => new Set(v.variantSets.map((x) => x.name.toLowerCase())).size === v.variantSets.length, { path: ["variantSets"], message: "Variable set names must be different" });
+  .refine((v) => new Set(v.variantSets.map((x) => x.name.toLowerCase())).size === v.variantSets.length, { path: ["variantSets"], message: "Variable set names must be different" })
+  // Nothing to collect means nothing to batch or encode: enforce it here so no client can create the contradiction.
+  .transform((v) => (v.physical ? v : { ...v, batchProcessingEnabled: false, nfcEnabled: false }));
 export type ItemInput = z.infer<typeof itemSchema>;
 
 export const checkoutSchema = z.object({
@@ -117,6 +120,8 @@ export const batchSizeSchema = z.object({ maxOrders: z.number().int().min(1).max
 const lookupEmail = z.email("Enter a valid email").transform((v) => v.trim().toLowerCase());
 export const staffAssignSchema = z.object({ email: lookupEmail, action: z.enum(["ASSIGN", "REMOVE"]).default("ASSIGN") });
 export const roleChangeSchema = z.object({ email: lookupEmail, role: z.enum(["ADMIN", "STAFF", "STUDENT"]), reason: z.string().trim().min(3).max(200) });
+/** Permanent account deletion (Super Admin). `confirmEmail` must repeat `email` exactly: the typed confirmation. */
+export const deleteUserSchema = z.object({ email: lookupEmail, confirmEmail: lookupEmail, reason: z.string().trim().min(3).max(200) });
 export const exportSchema = z.object({
   itemId: z.string().optional(),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

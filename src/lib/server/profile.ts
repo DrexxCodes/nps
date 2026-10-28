@@ -1,6 +1,6 @@
 import "server-only";
 import { admissionYearOf, academicYear, exceedsCourseDuration } from "@/lib/admission";
-import { micahAvatarUrl } from "@/lib/avatar";
+import { defaultAvatarUrl } from "@/lib/avatar";
 import type { Item, PlatformSettings, PublicProfile, RequirementType } from "@/types";
 import { db } from "./firebase-admin";
 import { buildPublicProfileFields, type PublicProfileFields } from "./public-profile";
@@ -49,7 +49,7 @@ export async function getPublicProfile(admissionNumber: string, s: PlatformSetti
   const birthday = d.birthday ? new Date(`2000-${d.birthday}T00:00:00Z`).toLocaleDateString("en-NG", { day: "numeric", month: "long", timeZone: "UTC" }) : null;
   return {
     fullName: d.fullName ?? "", admissionNumber, profileImageUrl: d.profileImageUrl ?? null,
-    avatarUrl: d.profileImageUrl ?? micahAvatarUrl(d.avatarSeed ?? admissionNumber),
+    avatarUrl: d.profileImageUrl ?? defaultAvatarUrl(d.avatarSeed ?? admissionNumber),
     academicYear: derivedAcademicYear(admissionNumber, s), bio: d.bio ?? "", birthday, socials: d.socials ?? [],
   };
 }

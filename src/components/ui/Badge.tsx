@@ -18,6 +18,7 @@ export const PaymentBadge = ({ status }: { status: string }) => <Badge tone={PAY
 /** Student-facing fulfillment state: delivered > batch status > awaiting. */
 export function FulfillmentBadge({ fulfillment, batchStatus, batched }: { fulfillment: string; batchStatus?: string | null; batched: boolean }) {
   if (fulfillment === "DELIVERED") return <Badge tone="green">Delivered</Badge>;
+  if (fulfillment === "NOT_REQUIRED") return <Badge tone="gray">No collection needed</Badge>;
   if (!batched) return <Badge tone="amber">Awaiting collection</Badge>;
   if (batchStatus === "READY_FOR_PICKUP") return <Badge tone="blue">Ready for pickup</Badge>;
   if (batchStatus === "PROCESSING") return <Badge tone="amber">Processing</Badge>;

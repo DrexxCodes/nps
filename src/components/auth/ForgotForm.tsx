@@ -15,7 +15,7 @@ export function ForgotForm() {
   });
   if (sent) return <p role="status" className="rounded-xl bg-[var(--accent-soft)] p-4 text-sm">If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.</p>;
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form suppressHydrationWarning onSubmit={onSubmit} className="space-y-4">
       <Input label="Email" type="email" autoComplete="email" required {...register("email", { required: true })} />
       <Button type="submit" loading={isSubmitting} className="w-full">Send reset link</Button>
     </form>

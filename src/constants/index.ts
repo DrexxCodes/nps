@@ -69,6 +69,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   WITHDRAWAL_FAILED: "The withdrawal could not be completed.",
   NFC_NOT_SUPPORTED: "NFC is not supported on this device or browser.",
   ORDER_NOT_READY_FOR_PICKUP: "This item isn't ready yet. Its batch must be marked Ready for pickup before it can be delivered.",
+  NO_COLLECTION_NEEDED: "This item has no physical collection, so there is nothing to hand over.",
   ORDER_ALREADY_DELIVERED: "This order has already been delivered.",
   VALIDATION_ERROR: "Some fields need attention.",
   NOT_FOUND: "We could not find what you were looking for.",

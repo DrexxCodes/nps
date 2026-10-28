@@ -12,7 +12,7 @@ export const metadata = { title: "My profile" };
 export const dynamic = "force-dynamic";
 
 export default async function MyProfile() {
-  const user = await requirePageUser(["STUDENT"]);
+  const user = await requirePageUser();
   const u = await getUserDoc(user.uid);
   const pub = u?.admissionNumber ? await getPublicProfile(u.admissionNumber, await getPlatformSettings()) : null;
   return (

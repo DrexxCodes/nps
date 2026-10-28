@@ -3,6 +3,7 @@ import { formatNaira } from "@/lib/money";
 import { describeVariants } from "@/lib/variants";
 import { db } from "@/lib/server/firebase-admin";
 import { derivedAcademicYear } from "@/lib/server/profile";
+import { batchStatusFor } from "@/lib/server/queries";
 import type { PlatformSettings } from "@/types";
 
 type O = Record<string, any> & { id: string }; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -12,6 +13,7 @@ export async function OrdersTable({ orders, settings, batched }: { orders: O[]; 
   const ids = [...new Set(orders.map((o) => o.userId as string))];
   const snaps = ids.length ? await db().getAll(...ids.map((id) => db().doc(`users/${id}`))) : [];
   const users = new Map(snaps.map((s) => [s.id, s.data()]));
+  const batchStatus = await batchStatusFor(orders); // live status, so it matches what the student sees
   const showOptions = orders.some((o) => (o.selectedVariants?.length ?? 0) > 0); // only when this item has variable sets
   return (
     <div className="glass overflow-x-auto rounded-2xl">
@@ -24,7 +26,7 @@ export async function OrdersTable({ orders, settings, batched }: { orders: O[]; 
             {showOptions && <td className="px-4 py-3 text-xs">{describeVariants(o.selectedVariants) || "-"}</td>}<td className="px-4 py-3 font-mono text-xs">{o.reference}</td>
             <td className="px-4 py-3">{formatNaira(o.totalAmount)}</td>
             <td className="px-4 py-3">{new Date(o.paidAt).toLocaleDateString("en-NG", { dateStyle: "medium" })}</td><td className="px-4 py-3">{o.batchNumber ?? (o.batchPending ? "Needs batch" : "-")}</td>
-            <td className="px-4 py-3"><div className="flex gap-1.5"><PaymentBadge status={o.paymentStatus} /><FulfillmentBadge fulfillment={o.fulfillmentStatus} batched={batched && !!o.batchId} /></div></td>
+            <td className="px-4 py-3"><div className="flex gap-1.5"><PaymentBadge status={o.paymentStatus} /><FulfillmentBadge fulfillment={o.fulfillmentStatus} batchStatus={o.batchId ? batchStatus.get(`${o.itemId}/${o.batchId}`) : null} batched={batched && !!o.batchId} /></div></td>
           </tr>); })}</tbody>
       </table>
     </div>
