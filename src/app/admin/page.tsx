@@ -5,7 +5,8 @@ import { EmptyState, PageTitle } from "@/components/ui/States";
 import { formatNaira } from "@/lib/money";
 import { db } from "@/lib/server/firebase-admin";
 import { itemsForUser } from "@/lib/server/items";
-import { balanceFor } from "@/lib/server/ledger";
+import { balanceForItems } from "@/lib/server/ledger";
+import { getPlatformSettings } from "@/lib/server/settings";
 import { batchStatusFor, recentSales } from "@/lib/server/queries";
 import { requirePageUser, ADMIN_ROLES } from "@/lib/server/session";
 import { getSalesStats } from "@/lib/server/stats";
@@ -17,7 +18,8 @@ export default async function AdminHome() {
   const user = await requirePageUser(ADMIN_ROLES);
   const owner = user.role === "SUPER_ADMIN" ? null : user.uid; // null = platform-wide
   // Totals come from running counters updated by the payment transaction, and recent sales are a 5-row query: no order scan.
-  const [items, stats, recent, bal] = await Promise.all([itemsForUser(user), getSalesStats(owner), recentSales(owner, 5), balanceFor(user.uid)]);
+  const [items, stats, recent, settings] = await Promise.all([itemsForUser(user), getSalesStats(owner), recentSales(owner, 5), getPlatformSettings()]);
+  const bal = await balanceForItems(items.filter((i) => i.ownerAdminId === user.uid).map((i) => i.id), settings.withdrawalHoldHours); // wallets of the items you own: one read each
   const awaiting = Math.max(0, stats.paidOrders - stats.deliveredOrders - stats.noCollectionOrders); // orders with nothing to collect never await pickup
   const batchStates = { QUEUED: 0, PROCESSING: 0, READY_FOR_PICKUP: 0 };
   const batchSnaps = await Promise.all(items.filter((x) => x.batchProcessingEnabled).map((i) => db().collection(`items/${i.id}/batches`).get()));
@@ -37,7 +39,7 @@ export default async function AdminHome() {
         {stat("Items", items.length, `${items.filter((i) => i.status === "ACTIVE").length} active`)}
         {stat("Paid orders", stats.paidOrders)}
         {stat("Gross collections", formatNaira(stats.grossKobo), "Item subtotals, confirmed payments only")}
-        {stat("Available balance", formatNaira(bal.availableKobo), "From the ledger, after withdrawals")}
+        {stat("Available balance", formatNaira(bal.availableKobo), "Released and not yet requested")}
         {stat("Awaiting fulfillment", awaiting)}
         {stat("Delivered", stats.deliveredOrders, stats.noCollectionOrders > 0 ? `${stats.noCollectionOrders} paid order(s) need no collection` : undefined)}
         {stat("Batches queued / processing", `${batchStates.QUEUED} / ${batchStates.PROCESSING}`)}

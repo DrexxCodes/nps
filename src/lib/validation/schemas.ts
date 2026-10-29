@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_HOLD_HOURS, MIN_WITHDRAWAL_KOBO } from "@/constants/withdrawals";
 import { ADMISSION_TYPES, BATCH_STATUSES, ITEM_STATUSES, MAX_ACTIVE_SOCIAL_LINKS, MAX_BIO_LENGTH, MAX_CLASS_YEAR, MAX_VARIANT_OPTIONS, MAX_VARIANT_SETS, NFC_FIELDS, REQUIREMENT_TYPES, SOCIAL_PLATFORMS, VARIANT_SELECTION_MODES } from "@/constants";
 
 const dobString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use the format YYYY-MM-DD").refine((v) => {
@@ -113,11 +114,22 @@ export const settingsSchema = z.object({
   platformFeeEnabled: z.boolean(),
   platformFeePercentage: z.number().min(0).max(20),
   platformFeeFlatKobo: z.number().int().min(0).max(1e7),
+  /** Optional so older clients that do not send it leave the stored value alone. */
+  withdrawalHoldHours: z.number().int().min(0, "Cannot be negative").max(MAX_HOLD_HOURS, `At most ${MAX_HOLD_HOURS} hours`).optional(),
 });
 
 export const batchStatusSchema = z.object({ status: z.enum(BATCH_STATUSES) });
 export const batchSizeSchema = z.object({ maxOrders: z.number().int().min(1).max(100000) });
 const lookupEmail = z.email("Enter a valid email").transform((v) => v.trim().toLowerCase());
+export const withdrawalRequestSchema = z.object({
+  itemId: z.string().min(1),
+  bankCode: z.string().min(2).max(10),
+  accountNumber: z.string().regex(/^\d{10}$/, "Account numbers have 10 digits"),
+  amountKobo: z.number().int().min(MIN_WITHDRAWAL_KOBO, "The minimum withdrawal is ₦100").max(1e12),
+});
+export const withdrawalPaySchema = z.object({ reference: z.string().trim().max(80).optional(), note: z.string().trim().max(200).optional() });
+export const withdrawalRejectSchema = z.object({ reason: z.string().trim().min(3, "Give a short reason").max(200) });
+export const transferOwnershipSchema = z.object({ email: lookupEmail, reason: z.string().trim().max(200).optional() });
 export const staffAssignSchema = z.object({ email: lookupEmail, action: z.enum(["ASSIGN", "REMOVE"]).default("ASSIGN") });
 export const roleChangeSchema = z.object({ email: lookupEmail, role: z.enum(["ADMIN", "STAFF", "STUDENT"]), reason: z.string().trim().min(3).max(200) });
 /** Permanent account deletion (Super Admin). `confirmEmail` must repeat `email` exactly: the typed confirmation. */

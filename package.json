@@ -13,6 +13,7 @@
     "bootstrap:super-admin": "node --env-file=.env.local scripts/bootstrap-super-admin.mjs",
     "backfill:dars": "node --env-file=.env.local scripts/backfill-dars-fields.mjs",
     "backfill:sales": "node --env-file=.env.local scripts/backfill-sales-stats.mjs",
+    "backfill:wallets": "node --env-file=.env.local scripts/backfill-item-wallets.mjs",
     "payment": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/payment.ts",
     "app": "pnpm run build && pnpm run start"
   },

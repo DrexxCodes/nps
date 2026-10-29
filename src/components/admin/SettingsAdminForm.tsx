@@ -9,7 +9,7 @@ import { api } from "@/lib/client/api";
 import { computePricing, formatNaira, nairaToKobo } from "@/lib/money";
 import type { PlatformSettings } from "@/types";
 
-interface V { enrollmentOpen: boolean; courseDurationYears: string; academicSessionStartMonth: number; schoolTimezone: string; platformFeeEnabled: boolean; platformFeePercentage: number; flatNaira: number }
+interface V { enrollmentOpen: boolean; courseDurationYears: string; academicSessionStartMonth: number; schoolTimezone: string; platformFeeEnabled: boolean; platformFeePercentage: number; flatNaira: number; withdrawalHoldHours: number }
 
 const SAMPLE_SUBTOTAL_KOBO = 1_000_000; // ₦10,000, only used for the live preview
 
@@ -22,7 +22,7 @@ export function SettingsAdminForm({ settings }: { settings: PlatformSettings }) 
   const flat = Number(watch("flatNaira")) || 0;
   const preview = computePricing(SAMPLE_SUBTOTAL_KOBO, { version: 0, enabled: feeOn, percentage: pct, flatKobo: nairaToKobo(flat) });
   const onSubmit = handleSubmit(async (v) => {
-    const r = await api("/api/admin/settings", { method: "PATCH", json: { enrollmentOpen: v.enrollmentOpen, courseDurationYears: Number(v.courseDurationYears), academicSessionStartMonth: Number(v.academicSessionStartMonth), schoolTimezone: v.schoolTimezone, platformFeeEnabled: v.platformFeeEnabled, platformFeePercentage: Number(v.platformFeePercentage), platformFeeFlatKobo: Math.round(Number(v.flatNaira) * 100) } });
+    const r = await api("/api/admin/settings", { method: "PATCH", json: { enrollmentOpen: v.enrollmentOpen, courseDurationYears: Number(v.courseDurationYears), academicSessionStartMonth: Number(v.academicSessionStartMonth), schoolTimezone: v.schoolTimezone, platformFeeEnabled: v.platformFeeEnabled, platformFeePercentage: Number(v.platformFeePercentage), platformFeeFlatKobo: Math.round(Number(v.flatNaira) * 100), withdrawalHoldHours: Math.round(Number(v.withdrawalHoldHours)) } });
     if (r.ok) { toast("success", "Settings saved"); router.refresh(); } else toast("error", Object.values(r.fields ?? {})[0] ?? r.message);
   });
   return (
@@ -61,6 +61,14 @@ export function SettingsAdminForm({ settings }: { settings: PlatformSettings }) 
             </>
           )}
           <p className="text-xs text-[var(--muted)]">The fee is calculated on the item subtotal and shown to students as &quot;Platform fee&quot;. It is not the payment provider&apos;s own charge. Changes apply only to new payments.</p>
+        </Card>
+        <Card className="space-y-4 lg:p-6">
+          <div>
+            <h2 className="font-display text-lg font-bold">Withdrawals</h2>
+            <p className="mt-0.5 text-sm text-[var(--muted)]">How long collected money is held before an item&apos;s admin can ask to withdraw it.</p>
+          </div>
+          <Input label="Hold period (hours)" type="number" min={0} max={720} step={1} hint="24 matches next-day settlement by Paystack and Credo. 0 means no hold." {...register("withdrawalHoldHours", { valueAsNumber: true })} />
+          <p className="text-xs text-[var(--muted)]">Payments are grouped by day (Africa/Lagos). A day&apos;s money can be withdrawn once this many hours have passed since that day&apos;s most recent payment. The new value applies to money that has not been released yet; money already released stays released. Admins request withdrawals, and you approve and mark them paid under Money.</p>
         </Card>
       </div>
       <div className="flex lg:justify-end"><Button type="submit" loading={isSubmitting} className="w-full sm:w-auto">Save settings</Button></div>

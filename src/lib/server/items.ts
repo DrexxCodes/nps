@@ -51,6 +51,12 @@ export async function itemsForUser(user: SessionUser): Promise<Item[]> {
   return (await syncItemStatuses(snap.docs.map(toItem))).sort((a, b) => b.createdAt - a.createdAt);
 }
 
+/** Items this user owns, whatever their role (a Super Admin's own items, not the whole platform). No status sync: used for money views only. */
+export async function ownedItems(uid: string): Promise<Item[]> {
+  const snap = await db().collection("items").where("ownerAdminId", "==", uid).get();
+  return snap.docs.map(toItem).sort((a, b) => b.createdAt - a.createdAt);
+}
+
 /**
  * Brings an item's stored status in line with its schedule (see `resolveItemStatus`) and returns the up-to-date item.
  * Runs when an admin opens the item pages and before a student can see, price or buy an item. The write only happens if the

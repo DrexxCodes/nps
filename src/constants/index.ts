@@ -1,3 +1,5 @@
+import { DEFAULT_HOLD_HOURS } from "./withdrawals";
+
 export const APP_NAME = "NPS";
 export const APP_FULL_NAME = "NAPSS Payment Suite";
 export const DEVELOPER = "Drexx Technologies";
@@ -46,6 +48,7 @@ export const DEFAULT_PLATFORM_SETTINGS = {
   platformFeeFlatKobo: 0,
   currency: CURRENCY,
   feeConfigVersion: 1,
+  withdrawalHoldHours: DEFAULT_HOLD_HOURS,
 } as const;
 
 export const ERROR_MESSAGES: Record<string, string> = {
@@ -69,6 +72,13 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PROVIDER_SECRETS_KEY_MISSING: "Set PROVIDER_SECRETS_KEY (32+ characters) in the server environment first. Keys are encrypted with it before they are stored.",
   INSUFFICIENT_AVAILABLE_BALANCE: "The requested amount exceeds the available balance.",
   WITHDRAWAL_FAILED: "The withdrawal could not be completed.",
+  WITHDRAWAL_BELOW_MINIMUM: "The minimum withdrawal is ₦100.",
+  WITHDRAWAL_NOT_PENDING: "This request has already been handled.",
+  TOO_MANY_PENDING_WITHDRAWALS: "This item already has the maximum number of open withdrawal requests. Wait for one to be handled or cancel one.",
+  NOT_ITEM_OWNER: "Only the owner of this item can request a withdrawal.",
+  TRANSFER_TARGET_INVALID: "The new owner must be an active Admin.",
+  TRANSFER_SAME_OWNER: "That admin already owns this item.",
+  OWNERSHIP_CHANGED: "Ownership of this item just changed. Refresh and try again.",
   NFC_NOT_SUPPORTED: "NFC is not supported on this device or browser.",
   ORDER_NOT_READY_FOR_PICKUP: "This item isn't ready yet. Its batch must be marked Ready for pickup before it can be delivered.",
   NO_COLLECTION_NEEDED: "This item has no physical collection, so there is nothing to hand over.",

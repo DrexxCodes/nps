@@ -6,6 +6,7 @@ import { db } from "./firebase-admin";
 import { AppError } from "./errors";
 import { auditInTx } from "./audit";
 import { recordDelivery } from "./stats";
+import { recordWalletDelivery } from "./wallet";
 
 const NEXT: Record<BatchStatus, BatchStatus | null> = { QUEUED: "PROCESSING", PROCESSING: "READY_FOR_PICKUP", READY_FOR_PICKUP: null };
 
@@ -63,6 +64,7 @@ export async function deliverOrder(user: SessionUser, item: Item, orderId: strin
     }
     tx.update(ref, { fulfillmentStatus: "DELIVERED", deliveredAt: Date.now(), deliveredBy: user.uid, updatedAt: Date.now() });
     recordDelivery(tx, item.ownerAdminId);
+    recordWalletDelivery(tx, item.id); // the item's own counter, so its sales totals can move with it if ownership is transferred
     auditInTx(tx, { actorUid: user.uid, actorRole: user.role, action: "ORDER_DELIVERED", resourceType: "order", resourceId: orderId, metadata: { itemId: item.id } });
   });
 }

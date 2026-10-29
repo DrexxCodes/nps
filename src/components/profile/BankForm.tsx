@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Field";
+import { BankPicker } from "@/components/ui/BankPicker";
+import { Input } from "@/components/ui/Field";
 import { api } from "@/lib/client/api";
 
 export function BankForm({ onDone }: { onDone: () => void }) {
@@ -30,10 +31,7 @@ export function BankForm({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="space-y-3">
-      <Select label="Bank" value={bank} onChange={(e) => { setBank(e.target.value); reset(); }}>
-        <option value="">Select your bank</option>
-        {banks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
-      </Select>
+      <BankPicker banks={banks} value={bank} onChange={(c) => { setBank(c); reset(); }} />
       <Input label="Account number" inputMode="numeric" maxLength={10} value={number} onChange={(e) => { setNumber(e.target.value.replace(/\D/g, "")); reset(); }} />
       {resolved && <p className="rounded-xl bg-[var(--accent-soft)] p-3 text-sm">Account name: <b>{resolved}</b></p>}
       {error && <p role="alert" className="text-sm text-[var(--danger)]">{error}</p>}

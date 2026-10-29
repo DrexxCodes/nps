@@ -15,6 +15,8 @@ import { loadFreshItem, toItem } from "./items";
 import { derivedAcademicYear, getUserDoc, missingRequirements } from "./profile";
 import { getPlatformSettings } from "./settings";
 import { recordSale } from "./stats";
+import { recordWalletSale } from "./wallet";
+import { settlementDay } from "@/lib/wallet";
 import { after } from "next/server";
 import { getActiveProvider, getProvider, providerOfReference, type NormalizedTransaction, type VerifyResult } from "./providers";
 import { paymentEmail, sendEmail } from "./email";
@@ -191,6 +193,10 @@ export async function confirmPayment(reference: string, pt: NormalizedTransactio
       throw new AppError("PAYMENT_VERIFICATION_FAILED");
     }
 
+    // The item's CURRENT owner gets the money, so an ownership transfer between checkout and payment can't send it to the old owner.
+    const itemSnap = await tx.get(db().doc(`items/${t.itemId}`));
+    const owner: string = itemSnap.data()?.ownerAdminId ?? t.ownerAdminId;
+
     let batchId: string | null = t.batchId ?? null;
     let batchNumber: number | null = t.batchNumber ?? null;
     let batchPending = false;
@@ -214,21 +220,24 @@ export async function confirmPayment(reference: string, pt: NormalizedTransactio
     const now = Date.now();
     const physical = t.physical !== false; // transactions from before this flag existed were all physical
     tx.set(db().doc(`orders/${t.orderId}`), {
-      userId: t.userId, itemId: t.itemId, itemOwnerId: t.ownerAdminId, reference, selectedSubItems: t.selectedSubItems, selectedVariants: t.selectedVariants ?? [], classYear: t.classYear ?? null, itemNameSnapshot: t.itemNameSnapshot,
+      userId: t.userId, itemId: t.itemId, itemOwnerId: owner, reference, selectedSubItems: t.selectedSubItems, selectedVariants: t.selectedVariants ?? [], classYear: t.classYear ?? null, itemNameSnapshot: t.itemNameSnapshot,
       subtotal: t.subtotalKobo, platformFee: t.platformFeeKobo, otherFees: t.otherFeesKobo, totalAmount: t.amountKobo, currency: t.currency,
       paymentStatus: "SUCCESSFUL", physical, fulfillmentStatus: physical ? "AWAITING" : "NOT_REQUIRED", batchId, batchNumber, batchPending, emailStatus: "PENDING",
       createdAt: t.createdAt, paidAt: now, deliveredAt: null, deliveredBy: null, updatedAt: now,
     });
     const ledger = (suffix: string, e: Record<string, unknown>) => tx.set(db().doc(`financialLedger/${reference}_${suffix}`), { provider: pt.provider, eventType: suffix, orderId: t.orderId, withdrawalId: null, currency: t.currency, status: "CONFIRMED", reference, createdAt: now, itemId: t.itemId, ...e });
-    ledger("PAYMENT", { ownerAdminId: t.ownerAdminId, amountKobo: t.subtotalKobo, direction: "CREDIT" });
+    ledger("PAYMENT", { ownerAdminId: owner, amountKobo: t.subtotalKobo, direction: "CREDIT", settlementDay: settlementDay(now) });
     if (t.platformFeeKobo > 0) ledger("PLATFORM_FEE", { ownerAdminId: null, amountKobo: t.platformFeeKobo, direction: "CREDIT" });
     if (pt.feesKobo && pt.feesKobo > 0) ledger("PROCESSOR_FEE", { ownerAdminId: null, amountKobo: pt.feesKobo, direction: "DEBIT" });
 
-    recordSale(tx, t.ownerAdminId, t.subtotalKobo, physical); // same transaction as the order: exactly once, however many times verify/webhook/reconcile run
+    recordSale(tx, owner, t.subtotalKobo, physical); // same transaction as the order: exactly once, however many times verify/webhook/reconcile run
+    // Files the payment under its settlement day on the item's wallet. The webhook and verify both land here, so the withdrawal hold is
+    // recorded exactly once per payment; the day only becomes withdrawable after the hold set by the platform admin (see lib/server/wallet.ts).
+    const day = recordWalletSale(tx, t.itemId, t.subtotalKobo, physical, now);
 
     const patch = { status: "SUCCESSFUL" as PaymentStatus, providerTransactionId: pt.providerTransactionId, confirmedVia: source, verifiedAt: now, updatedAt: now, statusHistory: hist("SUCCESSFUL") };
     tx.update(refDoc, { ...patch, ...(source === "webhook" ? { webhookProcessedAt: now } : {}) });
-    tx.update(txnDoc, { ...patch, batchId, batchNumber });
+    tx.update(txnDoc, { ...patch, batchId, batchNumber, settlementDay: day });
     if (batchPending) auditInTx(tx, { actorUid: "system", actorRole: "SYSTEM", action: "PAID_ORDER_NEEDS_BATCH", resourceType: "order", resourceId: t.orderId, metadata: { itemId: t.itemId } });
     return { orderId: t.orderId as string, already: false as const };
   });

@@ -1,16 +1,14 @@
 import "server-only";
-import { db } from "./firebase-admin";
+import { balancesOf, sumBalances } from "@/lib/wallet";
+import type { WalletBalances } from "@/types/withdrawals";
+import { loadWallets } from "./wallet";
 
-export interface Balance { grossKobo: number; platformFeesKobo: number; processorFeesKobo: number; netAttributableKobo: number; withdrawnKobo: number; pendingKobo: number; availableKobo: number }
-
-/** Derived purely from immutable ledger entries — never from mutable dashboard counters. */
-export async function balanceFor(ownerAdminId: string | null, itemId?: string): Promise<Balance> {
-  let q = db().collection("financialLedger").where("ownerAdminId", "==", ownerAdminId);
-  if (itemId) q = q.where("itemId", "==", itemId);
-  const entries = (await q.get()).docs.map((d) => d.data());
-  const sum = (type: string, status?: string) => entries.filter((e) => e.eventType === type && (!status || e.status === status)).reduce((n, e) => n + (e.amountKobo as number), 0);
-  const gross = sum("PAYMENT") - sum("REFUND");
-  const withdrawn = sum("WITHDRAWAL", "CONFIRMED");
-  const pending = sum("WITHDRAWAL", "RESERVED");
-  return { grossKobo: gross, platformFeesKobo: 0, processorFeesKobo: 0, netAttributableKobo: gross, withdrawnKobo: withdrawn, pendingKobo: pending, availableKobo: Math.max(0, gross - withdrawn - pending) };
+/**
+ * Money totals for a set of items (the admin's own items). Read from the per-item wallets, which are updated in the same
+ * transaction as every payment and withdrawal, so one document read per item replaces the old scan of every ledger entry.
+ * `financialLedger` entries are still written for every payment and payout as the immutable audit trail.
+ */
+export async function balanceForItems(itemIds: string[], holdHours: number): Promise<WalletBalances> {
+  const wallets = await loadWallets(itemIds, holdHours);
+  return sumBalances([...wallets.values()].map(balancesOf));
 }

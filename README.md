@@ -94,7 +94,7 @@ src/
 
 ## Open items
 
-- **Withdrawals / transfers:** intentionally not enabled. The PRD requires verifying the payment provider's transfer/settlement model for your account first. Ledger balances and withdrawal history pages are ready.
+- **Withdrawals** are manual: an item's owner requests, the Super Admin pays by hand and marks it paid (see CHANGELOG 0.8.0). NPS never calls a provider transfer API. Deploy the new Firestore indexes and run `npm run backfill:wallets` once.
 - **Email change** needs Firebase's verify-before-update flow; the field is read-only for now.
 - **Manual registration override** for graduated students (PRD 5.7) is not built; the rejection message is.
 - **Tests:** unit tests exist for core logic. Emulator-based rules tests, concurrency tests and Playwright E2E are still to write.
@@ -108,6 +108,7 @@ Payments: `POST /api/payments/{initialize,verify,webhook,resolve-account}`, `GET
 Items/orders: `GET /api/items`, `POST /api/admin/items`, `PATCH /api/admin/items/[id]`, `POST .../suspend`, `GET|POST .../staff`, `GET /api/orders[/id]`.
 Batches: `GET /api/admin/items/[id]/batches`, `POST .../[batchId]/status`, `PATCH .../[batchId]/size`.
 Staff: `GET /api/staff/orders/search`, `POST /api/staff/orders/[id]/deliver`, `GET /api/staff/nfc-payload`.
-Other: `POST /api/exports/orders`, `GET /api/withdrawals` (read-only), `GET|PATCH /api/admin/settings`, `GET|POST /api/admin/users`, `GET /api/cron/birthdays`.
+Money: `GET|POST /api/withdrawals`, `POST /api/withdrawals/[id]/cancel`, `POST /api/admin/withdrawals/[id]/{pay,reject}`, `POST /api/admin/items/[id]/transfer`, `GET /api/exports/withdrawals?itemId=`.
+Other: `POST /api/exports/orders`, `GET|PATCH /api/admin/settings`, `GET|POST /api/admin/users`, `GET /api/cron/birthdays`.
 
 State/LGA: `PATCH /api/profile` validates `stateOfOrigin` + `localGovernmentArea` against `@some19ice/nigeria-geo-core` (37 states, 774 LGAs; the LGA must belong to the state). The Settings page loads the dataset lazily as its own chunk.

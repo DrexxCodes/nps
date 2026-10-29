@@ -3,12 +3,72 @@
     {
       "collectionGroup": "orders",
       "queryScope": "COLLECTION",
-      "fields": [{ "fieldPath": "itemId", "order": "ASCENDING" }, { "fieldPath": "paidAt", "order": "DESCENDING" }]
+      "fields": [
+        {
+          "fieldPath": "itemId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paidAt",
+          "order": "DESCENDING"
+        }
+      ]
     },
     {
       "collectionGroup": "orders",
       "queryScope": "COLLECTION",
-      "fields": [{ "fieldPath": "itemOwnerId", "order": "ASCENDING" }, { "fieldPath": "paidAt", "order": "DESCENDING" }]
+      "fields": [
+        {
+          "fieldPath": "itemOwnerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paidAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "withdrawals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "itemId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "requestedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "withdrawals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "requestedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "days",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "open",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastPaidAt",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

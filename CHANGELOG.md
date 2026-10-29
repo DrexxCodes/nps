@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.8.0 - Settlement hold, withdrawal requests, per-item money and ownership transfer
+
+### Added
+- **Settlement hold (Super Admin).** Platform settings > Withdrawals: "Hold period (hours)", 0-720, default 24 (providers settle the next day). Payments are grouped by settlement day (Africa/Lagos); a day's money becomes withdrawable once that many hours have passed since the day's most recent payment. The hold is compared at read time, so a new value applies to money that has not been released yet; money already released stays released. Changes are audited (`WITHDRAWAL_HOLD_CHANGED`).
+- **Payments record their settlement day.** `confirmPayment` (the one function both the webhook and verify call, so each payment is recorded exactly once) now also writes the item's wallet and settlement-day document in the same transaction as the order. The webhook URLs and subscribed events are unchanged (`charge.success` for Paystack, `transaction.successful` for Credo). The transaction and the ledger's PAYMENT entry also store `settlementDay`.
+- **Per-item wallets.** `itemWallets/{itemId}` (running totals) and `itemWallets/{itemId}/days/{YYYY-MM-DD}` (collections per day). Balances are one document read; days are released lazily (`settleWallet`) the first time a balance is read after the hold passes, so there is no cron and no scan of orders or the ledger.
+- **Withdrawal requests.** An item's owner enters bank, account number and amount; the bank resolves the account name on the server (never browser-supplied) and everything is stored with the request (`withdrawals/{id}`). The amount is reserved in the same transaction, so two requests can't spend the same money. Minimum ₦100, at most 3 open requests per item. The owner can cancel an open request.
+- **Platform admin queue** (Money page, Super Admin): open requests oldest first with the full account to pay (copy button). "Mark as paid" (optional transfer reference and note) deducts the amount from the item's balance in the same transaction and writes an immutable ledger entry; "Reject" needs a reason shown to the admin. Both are audited.
+- **Item > Money tab:** balances (available, awaiting release with the time the next day opens, requested, withdrawn, collected), the request form, and that item's withdrawal history (latest 15 only are fetched).
+- **PDF export** (`GET /api/exports/withdrawals?itemId=`): every withdrawal request (full account details, status, who and when, reference or reason), every settlement day and the balances. Not limited to 15.
+- **Ownership transfer** (item > Ownership tab). The owner can hand an item to another active Admin; a Super Admin can move any item without the owner's permission (recorded as mode `SUPER_ADMIN`). The balance, history and sales totals follow the item. Open withdrawal requests are cancelled and their money returned to the balance (they were made to the previous owner's account). Payments that land after a transfer go to the new owner. `items/{id}/ownershipTransfers` keeps the record; the audit log gets `ITEM_OWNERSHIP_TRANSFERRED`.
+- `scripts/backfill-item-wallets.mjs` (`npm run backfill:wallets`): builds wallets for payments taken before this release (dry run by default).
+- `tests/wallet.test.ts`.
+
+### Changed
+- `/admin/withdrawals` (Money) now shows balances per item you own (and the queue for the Super Admin). `/admin/withdrawals/history` redirects there; history is per item.
+- Admin overview "Available balance" reads the item wallets instead of summing every ledger entry (`lib/server/ledger.ts`).
+- `GET /api/withdrawals?itemId=` returns balances and the latest 15 requests; `POST /api/withdrawals` creates a request. The old read-only "transfers are not enabled" behaviour is gone.
+- Bank list is cached per server instance for 6 hours (`lib/server/banks.ts`) instead of calling Paystack every time a bank form opens.
+- `confirmPayment` reads the item once more inside its transaction so the money and the order's `itemOwnerId` always go to the item's current owner.
+- Delivering an order also bumps the item's own delivered counter (`recordWalletDelivery`) so sales totals can move with an item.
+
+### Deploy steps
+1. `firebase deploy --only firestore:indexes` (new: `withdrawals(itemId, requestedAt)`, `withdrawals(status, requestedAt)`, `days(open, lastPaidAt)`). Pages that need an index show an error until it finishes building.
+2. `npm run backfill:wallets` (dry run), then `npm run backfill:wallets -- --apply`, once, when nobody is paying. Without it, payments taken before this release are not in any wallet and can't be withdrawn.
+3. Set the hold under Platform settings > Withdrawals.
+
+### Notes
+- Withdrawals are paid by hand by the platform admin; NPS does not call any provider transfer API.
+- Account-name lookup uses Paystack's bank API (same as student bank details). Keep Paystack keys saved even when Credo takes payments.
+- Refunds are not modelled yet (no code path writes them); if one is added it must decrement `grossKobo` on the wallet.
+
 ## 0.7.1 - Content-Security-Policy
 
 ### Added

@@ -22,6 +22,8 @@ export interface PlatformSettings {
   platformFeeFlatKobo: number;
   currency: string;
   feeConfigVersion: number;
+  /** Hours after the last payment of a day before that day's money can be withdrawn. 0 = no hold. */
+  withdrawalHoldHours: number;
 }
 
 /** Price override for one class (academic year). Classes without an override pay the initial price. */

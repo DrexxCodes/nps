@@ -68,8 +68,7 @@ export function ItemForm({ item, courseYears }: { item?: Item; courseYears: numb
                 <Button type="button" variant="outline" size="sm" icon={<Plus className="size-4" />} onClick={() => append({ id: shortId(), name: "", description: "", priceNaira: 0, required: false, classPrices: blankClassPrices(years) })}>Add sub-item</Button>
               </div>
             )}
-            <p className="text-xs text-[var(--muted)]">Platform fees are set by a Super Admin and added at checkout. Totals are always recalculated on the server.</p>
-          </Card>
+            </Card>
         </div>
 
         <div className="space-y-5">
