@@ -13,7 +13,7 @@ export function PaystackForm({ overview }: { overview: ProviderOverview }) {
   const p = overview.paystack;
   const { saveKeys } = useProviderActions();
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<V>({ defaultValues: { secretKey: "", publicKey: p.publicKey } });
-  const onSubmit = handleSubmit(async (v) => { if (await saveKeys("paystack", v)) reset({ secretKey: "", publicKey: v.publicKey }); });
+  const onSubmit = handleSubmit(async (v) => { if (await saveKeys("paystack", { secretKey: v.secretKey, publicKey: v.publicKey })) reset({ secretKey: "", publicKey: v.publicKey }); });
   return (
     <form suppressHydrationWarning onSubmit={onSubmit} className="space-y-4">
       {p.source === "env" && <p className="rounded-xl bg-[var(--accent-soft)] px-4 py-3 text-sm">Paystack is currently running on <code>PAYSTACK_SECRET_KEY</code> from the server environment. Save the keys here to manage them from this panel instead.</p>}

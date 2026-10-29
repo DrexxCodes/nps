@@ -15,7 +15,7 @@ export function CredoForm({ overview, isProd }: { overview: ProviderOverview; is
   const { saveKeys } = useProviderActions();
   const { register, handleSubmit, reset, watch, formState: { isSubmitting } } = useForm<V>({ defaultValues: { environment: c.environment, publicKey: c.publicKey, secretKey: "", businessCode: c.businessCode, webhookSignature: "", clearWebhookSignature: false } });
   const env = watch("environment");
-  const onSubmit = handleSubmit(async (v) => { if (await saveKeys("credo", v)) reset({ ...v, secretKey: "", webhookSignature: "", clearWebhookSignature: false }); });
+  const onSubmit = handleSubmit(async (v) => { if (await saveKeys("credo", { ...v })) reset({ ...v, secretKey: "", webhookSignature: "", clearWebhookSignature: false }); });
   return (
     <form suppressHydrationWarning onSubmit={onSubmit} className="space-y-4">
       <Select label="Environment" hint="Sandbox and production have separate keys and dashboards; keys do not work across them." {...register("environment")}>
