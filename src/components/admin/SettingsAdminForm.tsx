@@ -60,7 +60,7 @@ export function SettingsAdminForm({ settings }: { settings: PlatformSettings }) 
               </div>
             </>
           )}
-          <p className="text-xs text-[var(--muted)]">The fee is calculated on the item subtotal and shown to students as &quot;Platform fee&quot;. It is not Paystack&apos;s own charge. Changes apply only to new payments.</p>
+          <p className="text-xs text-[var(--muted)]">The fee is calculated on the item subtotal and shown to students as &quot;Platform fee&quot;. It is not the payment provider&apos;s own charge. Changes apply only to new payments.</p>
         </Card>
       </div>
       <div className="flex lg:justify-end"><Button type="submit" loading={isSubmitting} className="w-full sm:w-auto">Save settings</Button></div>

@@ -21,7 +21,7 @@ export default async function ItemOrders({ params, searchParams }: { params: Pro
   return (
     <>
       <PageTitle title={item.name} subtitle={`${total} paid order(s)`} /><ItemTabs id={item.id} batched={item.batchProcessingEnabled} />
-      {rows.length === 0 ? <EmptyState title="No paid orders yet" body="Orders appear after Paystack confirms a payment." /> : (
+      {rows.length === 0 ? <EmptyState title="No paid orders yet" body="Orders appear after a payment is confirmed." /> : (
         <div className="space-y-4">
           <OrdersTable orders={rows} settings={await getPlatformSettings()} batched={item.batchProcessingEnabled} />
           <div className="flex items-center justify-between gap-3 text-sm text-[var(--muted)]">

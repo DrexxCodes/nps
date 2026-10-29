@@ -4,7 +4,7 @@ import { db } from "@/lib/server/firebase-admin";
 import { requireUser } from "@/lib/server/session";
 
 /**
- * Cheap status check for the receipt page: reads only our own `References` record (no Paystack call).
+ * Cheap status check for the receipt page: reads only our own `References` record (no provider call).
  * The webhook or the verify route moves it to SUCCESSFUL; the receipt page falls back to verify after a few seconds.
  */
 export const GET = route(async (req: Request) => {

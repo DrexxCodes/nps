@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.7.1 - Content-Security-Policy
+
+### Added
+- **Content-Security-Policy on every page**, built per request with a nonce (`lib/csp.ts`, applied in `proxy.ts`). Only our own scripts and scripts carrying the nonce can run, so injected `<script>` tags and inline handlers are refused. This is the main defence for the admin key fields against script injection (XSS). Also sets `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'` and `upgrade-insecure-requests` (production only).
+- Allowed outside origins, and why: `res.cloudinary.com` (images), `api.cloudinary.com` (profile photo upload), Firebase Auth (`identitytoolkit.googleapis.com`, `securetoken.googleapis.com`, `www.googleapis.com`, and your `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` helper frame that iOS/Safari/mobile browsers open). Payment checkouts are plain redirects, so Paystack and Credo need no entry.
+- `CSP_REPORT_ONLY=1` switches to report-only (violations show in the browser console, nothing is blocked) for testing.
+- `tests/csp.test.ts`.
+
+### Changed
+- `proxy.ts` now runs on all pages (not just the protected areas); the signed-out redirect is unchanged and still limited to `/dashboard`, `/admin`, `/staff`, `/items`. APIs, static assets and the service worker are skipped.
+- `layout.tsx` puts the request nonce on the two inline `<head>` scripts (theme and PWA flag). The layout was already dynamic (it reads the session), so there is no extra rendering cost.
+- Styles keep `'unsafe-inline'` because the UI uses React `style` attributes.
+
+## 0.7.0 - Switchable payment providers (Paystack and Credo)
+
+### Added
+- **Credo** as a second payment provider (hosted checkout, card and bank transfer). Initialize uses the public key, verification uses the secret key, `bearer: 1` so students are charged exactly our total (same as Paystack). Sandbox and production are selectable (`api.credodemo.com` / `api.credocentral.com`).
+- **Super Admin panel** (Platform settings > Payment provider) to save keys, see the webhook URL to paste into each dashboard, and switch which provider takes new payments at any time. Two-step confirm; a provider can only be activated once its keys are saved.
+- **Stored per provider:** Paystack secret + public key; Credo public key, secret key, business code, environment and an optional webhook signing signature. Secrets are sealed with AES-256-GCM using `PROVIDER_SECRETS_KEY` before they reach Firestore (`settings/paymentProviders`), never sent back to the browser (masked to the last 4 characters), and every save/switch is written to the audit log without secret values.
+- **Credo webhook** at `/api/payments/webhook/credo`: `X-Credo-Signature` is checked (constant-time) against SHA-512(secret key + business code) computed from the stored keys, or the stored dashboard signature; the payload's business code must match. Because that digest is fixed rather than body-bound, the payload is never trusted: the reference is looked up in our records and the payment is re-verified through Credo's API before it is marked paid. Handles `transaction.successful`; `transaction.transaction.transfer.reverse` is audited; failed/settlement events are acknowledged and ignored (the receipt/verify flow settles failures).
+- `tests/payment-providers.test.ts` (signature, status mapping, amount units, metadata).
+
+### Changed
+- Payment code goes through a provider interface (`lib/server/providers/`: `paystack`, `credo`, `config`, `crypto`, `webhook`, `index`) instead of calling Paystack directly. `lib/server/paystack.ts` is removed; its bank helpers moved to `providers/paystack.ts`.
+- Every `References` / `transactions` record now stores `provider`, `providerRef` and `providerTransactionId` (replaces `paystackTransactionId`). Verify, webhook and reservation reconciliation use the provider that took the payment, so switching never strands in-flight payments. Records without a `provider` are treated as Paystack. The processor-fee ledger entry also records its provider.
+- The original `/api/payments/webhook` URL stays Paystack's, so the existing Paystack dashboard setting is untouched.
+- Checkout fails before reserving a batch slot if the active provider has no keys.
+- **Latency:** after a webhook confirms a payment the order email is sent after the response (`after()`), so the webhook answers inside Credo's 5-second window. Outbound provider calls now time out after 15 s instead of hanging. Provider settings are cached per instance for 15 s, so checkout and webhooks add no extra reads.
+- Receipt page finds our reference even if a provider appends its own query parameters to the callback URL, and falls back to the provider's reference (`transRef`) to locate the record.
+- Copy no longer names Paystack (checkout button, receipt checking message, orders empty state, fee note, withdrawals note).
+- `PAYSTACK_SECRET_KEY` is now optional (fallback until keys are saved in the panel). New optional env var `PROVIDER_SECRETS_KEY` (32+ characters) is required to save keys in the panel.
+
+### Notes
+- Credo status codes 0, 4 and 5 count as paid; 3 and 7 failed; 1 and 2 refunded; 9, 10, 14 and 15 abandoned; the rest stay pending.
+- Credo's docs show amounts in kobo on verify but naira in the webhook example, so the reported amount is read in whichever unit reproduces what we charged. Anything else fails the amount check. Confirm with one sandbox payment.
+- Bank list and account-name lookup (student bank details) still use Paystack, since Credo's docs have no equivalent; keep Paystack keys saved while that feature is used.
+
 ## 0.6.0 - Item-first landing page, parallax hero, ID-style student profile
 
 ### Changed

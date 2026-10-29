@@ -11,7 +11,7 @@ import { requirePageUser } from "@/lib/server/session";
 import { getPlatformSettings } from "@/lib/server/settings";
 import { isPurchasable } from "@/lib/item-status";
 import { toStudentItem } from "@/lib/pricing";
-import { toItem } from "@/lib/server/items";
+import { syncItemStatuses, toItem } from "@/lib/server/items";
 import { db } from "@/lib/server/firebase-admin";
 import { ItemCard } from "@/components/items/ItemCard";
 
@@ -30,7 +30,7 @@ export default async function Dashboard() {
   const birthday = typeof u.dateOfBirth === "string" && u.dateOfBirth.slice(5) === today;
   const steps = [!!u.profileImageUrl, !!u.admissionNumber, !!u.bio, !!u.stateOfOrigin, u.emergencyContacts?.length > 0];
   const completion = Math.round((steps.filter(Boolean).length / steps.length) * 100);
-  const items = itemsSnap.docs.map(toItem).filter((i) => isPurchasable(i)).slice(0, 3).map((i) => toStudentItem(i, year));
+  const items = (await syncItemStatuses(itemsSnap.docs.map(toItem))).filter((i) => isPurchasable(i)).slice(0, 3).map((i) => toStudentItem(i, year));
 
   return (
     <>

@@ -2,7 +2,7 @@ import { isPurchasable } from "@/lib/item-status";
 import { toStudentItem } from "@/lib/pricing";
 import { ok, route } from "@/lib/server/errors";
 import { db } from "@/lib/server/firebase-admin";
-import { toItem } from "@/lib/server/items";
+import { syncItemStatuses, toItem } from "@/lib/server/items";
 import { requireUser } from "@/lib/server/session";
 import { currentClassYear } from "@/lib/server/student-class";
 
@@ -10,6 +10,6 @@ import { currentClassYear } from "@/lib/server/student-class";
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req); // 401 for signed-out callers
   const [snap, year] = await Promise.all([db().collection("items").where("status", "in", ["ACTIVE", "SCHEDULED"]).get(), currentClassYear(user.uid)]);
-  const items = snap.docs.map(toItem).filter((i) => isPurchasable(i)).map((i) => toStudentItem(i, year)).map(({ ownerAdminId, assignedStaffIds, ...pub }) => { void ownerAdminId; void assignedStaffIds; return pub; });
+  const items = (await syncItemStatuses(snap.docs.map(toItem))).filter((i) => isPurchasable(i)).map((i) => toStudentItem(i, year)).map(({ ownerAdminId, assignedStaffIds, ...pub }) => { void ownerAdminId; void assignedStaffIds; return pub; });
   return ok({ items });
 });

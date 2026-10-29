@@ -11,11 +11,12 @@ import { db } from "./firebase-admin";
 import { AppError } from "./errors";
 import { env } from "./env";
 import { auditInTx, audit } from "./audit";
-import { loadItem, toItem } from "./items";
+import { loadFreshItem, toItem } from "./items";
 import { derivedAcademicYear, getUserDoc, missingRequirements } from "./profile";
 import { getPlatformSettings } from "./settings";
 import { recordSale } from "./stats";
-import { initializeTransaction, verifyTransaction, type PaystackTransaction } from "./paystack";
+import { after } from "next/server";
+import { getActiveProvider, getProvider, providerOfReference, type NormalizedTransaction, type VerifyResult } from "./providers";
 import { paymentEmail, sendEmail } from "./email";
 
 const hist = (status: PaymentStatus) => FieldValue.arrayUnion({ status, at: Date.now() });
@@ -26,7 +27,7 @@ const hist = (status: PaymentStatus) => FieldValue.arrayUnion({ status, at: Date
  * pay and no class overrides, so it is safe to snapshot onto the transaction and order.
  */
 export async function quote(itemId: string, subItemIds: string[], admissionNumber: string | null = null): Promise<{ pricing: Pricing; chosen: SubItem[]; classYear: number | null }> {
-  const [loaded, settings] = await Promise.all([loadItem(itemId), getPlatformSettings()]);
+  const [loaded, settings] = await Promise.all([loadFreshItem(itemId), getPlatformSettings()]);
   const classYear = derivedAcademicYear(admissionNumber, settings);
   const item = toStudentItem(loaded, classYear);
   let chosen: SubItem[] = [];
@@ -44,7 +45,7 @@ export async function quote(itemId: string, subItemIds: string[], admissionNumbe
 export async function initializeCheckout(user: SessionUser, input: { itemId: string; subItemIds: string[]; variants?: VariantSelection }) {
   const profile = await getUserDoc(user.uid);
   if (!profile || profile.accountStatus !== "ACTIVE" || profile.banned === true) throw new AppError("FORBIDDEN");
-  const item = await loadItem(input.itemId);
+  const item = await loadFreshItem(input.itemId); // status checked (and brought up to date) before any slot is reserved
   if (!isPurchasable(item)) throw new AppError("ITEM_NOT_AVAILABLE");
   const missing = missingRequirements(profile, item);
   if (missing.length) throw new AppError("PROFILE_REQUIREMENTS_MISSING", { missing: missing.join(",") });
@@ -53,6 +54,9 @@ export async function initializeCheckout(user: SessionUser, input: { itemId: str
   if (!variantCheck.ok) throw new AppError("VALIDATION_ERROR", { variants: Object.values(variantCheck.errors)[0] ?? "Check your selections" });
 
   const { pricing, chosen, classYear } = await quote(item.id, input.subItemIds, profile.admissionNumber ?? null);
+  // Fail before a batch slot is reserved if the active provider has no keys yet.
+  const provider = await getActiveProvider();
+  if (!(await provider.isConfigured())) { console.error("[payments] active provider is not configured", provider.id); throw new AppError("PAYMENT_INITIALIZATION_FAILED"); }
   if (item.physical && item.batchProcessingEnabled) await reconcileExpired(item.id);
 
   const orderId = db().collection("orders").doc().id;
@@ -69,7 +73,7 @@ export async function initializeCheckout(user: SessionUser, input: { itemId: str
         item.physical && item.batchProcessingEnabled ? tx.get(db().collection(`items/${item.id}/batches`).orderBy("batchNumber")) : Promise.resolve(null),
       ]);
       if (refSnap.exists) return "COLLISION" as const;
-      const fresh = toItem(itemSnap);
+      const fresh = toItem(itemSnap); // read inside the transaction: the final purchasability check can never see stale status
       if (!isPurchasable(fresh)) throw new AppError("ITEM_NOT_AVAILABLE");
 
       let bId: string | null = null;
@@ -93,7 +97,7 @@ export async function initializeCheckout(user: SessionUser, input: { itemId: str
       const now = Date.now();
       const base = {
         reference, userId: user.uid, itemId: item.id, orderId, amountKobo: pricing.totalKobo, currency: "NGN", status: "PENDING" as PaymentStatus,
-        paystackTransactionId: null, createdAt: now, updatedAt: now, verifiedAt: null, statusHistory: [{ status: "PENDING", at: now }],
+        provider: provider.id, providerRef: null, providerTransactionId: null, createdAt: now, updatedAt: now, verifiedAt: null, statusHistory: [{ status: "PENDING", at: now }],
       };
       tx.set(refDoc, { ...base, webhookProcessedAt: null });
       tx.set(db().doc(`transactions/${reference}`), {
@@ -107,17 +111,15 @@ export async function initializeCheckout(user: SessionUser, input: { itemId: str
     if (attempt === 2) throw new AppError("PAYMENT_INITIALIZATION_FAILED");
   }
 
+  const callbackUrl = `${env().NEXT_PUBLIC_APP_URL}/dashboard/receipt?reference=${reference}`;
   try {
-    const res = await initializeTransaction({
-      email: profile.email, amountKobo: pricing.totalKobo, reference,
-      callbackUrl: `${env().NEXT_PUBLIC_APP_URL}/dashboard/receipt?reference=${reference}`, metadata: { userId: user.uid, itemId: item.id },
-    });
-    // Paystack's own message says exactly why (e.g. "Invalid key", "Invalid Amount Sent", "Invalid callback url"): keep it in the log.
-    if (!res.status) throw new Error(`Paystack rejected initialization (HTTP ${res.httpStatus}): ${res.message}`);
-    await Promise.all(["References", "transactions"].map((c) => db().doc(`${c}/${reference}`).update({ status: "INITIALIZED", updatedAt: Date.now(), statusHistory: hist("INITIALIZED") })));
-    return { reference, authorizationUrl: res.data.authorization_url, pricing, batchNumber: placed.batchNumber };
+    const res = await provider.initialize({ email: profile.email, name: profile.fullName ?? "", amountKobo: pricing.totalKobo, reference, callbackUrl, narration: item.name, metadata: { userId: user.uid, itemId: item.id } });
+    // The provider's own message says exactly why it refused (bad key, bad amount, bad callback url): keep it in the log.
+    if (!res.ok) throw new Error(res.message);
+    await Promise.all(["References", "transactions"].map((c) => db().doc(`${c}/${reference}`).update({ status: "INITIALIZED", providerRef: res.providerRef, updatedAt: Date.now(), statusHistory: hist("INITIALIZED") })));
+    return { reference, authorizationUrl: res.authorizationUrl, pricing, batchNumber: placed.batchNumber };
   } catch (e) {
-    console.error("[payments] initialize failed", reference, e instanceof Error ? e.message : "unknown", { amountKobo: pricing.totalKobo, callbackUrl: `${env().NEXT_PUBLIC_APP_URL}/dashboard/receipt` });
+    console.error("[payments] initialize failed", provider.id, reference, e instanceof Error ? e.message : "unknown", { amountKobo: pricing.totalKobo, callbackUrl });
     await releaseReservation(reference, "FAILED");
     throw new AppError("PAYMENT_INITIALIZATION_FAILED");
   }
@@ -142,16 +144,27 @@ export async function releaseReservation(reference: string, final: "FAILED" | "A
   });
 }
 
-/** Releases expired reservations only after Paystack confirms they were not paid. Ambiguous cases keep their slot. */
+/**
+ * Asks whichever provider took this payment (stored on the reference at checkout; Paystack for records that predate providers).
+ * Pass the already-loaded reference document to skip a read. Returns null when the reference does not exist.
+ */
+export async function verifyReference(reference: string, preloaded?: Record<string, unknown>): Promise<VerifyResult | null> {
+  const ref = preloaded ?? (await db().doc(`References/${reference}`).get()).data();
+  if (!ref) return null;
+  return getProvider(providerOfReference(ref)).verify({ reference, providerRef: (ref.providerRef as string | null | undefined) ?? null, expectedAmountKobo: ref.amountKobo as number });
+}
+
+/** Releases expired reservations only after the provider confirms they were not paid. Ambiguous cases keep their slot. */
 export async function reconcileExpired(itemId: string): Promise<void> {
   const snap = await db().collection(`items/${itemId}/reservations`).where("status", "==", "ACTIVE").limit(50).get();
   const expired = snap.docs.filter((d) => d.data().expiresAt < Date.now()).slice(0, 25);
   for (const d of expired) {
     try {
-      const res = await verifyTransaction(d.id);
-      if (res.status && res.data.status === "success") await confirmPayment(d.id, res.data, "verify");
-      else if (res.status && ["abandoned", "failed", "reversed"].includes(res.data.status)) await releaseReservation(d.id, res.data.status === "failed" ? "FAILED" : "ABANDONED");
-      else if (!res.status && /not found/i.test(res.message)) await releaseReservation(d.id, "ABANDONED");
+      const res = await verifyReference(d.id);
+      if (!res) continue;
+      if (res.ok && res.transaction.status === "success") await confirmPayment(d.id, res.transaction, "verify");
+      else if (res.ok && ["abandoned", "failed", "reversed"].includes(res.transaction.status)) await releaseReservation(d.id, res.transaction.status === "failed" ? "FAILED" : "ABANDONED");
+      else if (!res.ok && res.notFound) await releaseReservation(d.id, "ABANDONED");
     } catch (e) {
       console.error("[payments] reconcile skipped", d.id, e instanceof Error ? e.message : "unknown");
     }
@@ -159,7 +172,7 @@ export async function reconcileExpired(itemId: string): Promise<void> {
 }
 
 /** Idempotent. Safe to call from verify, webhook and reconciliation concurrently. */
-export async function confirmPayment(reference: string, pt: PaystackTransaction, source: "verify" | "webhook"): Promise<{ orderId: string; alreadyProcessed: boolean }> {
+export async function confirmPayment(reference: string, pt: NormalizedTransaction, source: "verify" | "webhook"): Promise<{ orderId: string; alreadyProcessed: boolean }> {
   if (pt.status !== "success" || pt.reference !== reference) throw new AppError("PAYMENT_VERIFICATION_FAILED");
 
   const outcome = await db().runTransaction(async (tx) => {
@@ -174,7 +187,7 @@ export async function confirmPayment(reference: string, pt: PaystackTransaction,
       return { orderId: r.orderId as string, already: true as const };
     }
     const md = pt.metadata;
-    if (pt.amount !== t.amountKobo || pt.currency !== t.currency || (md?.userId && md.userId !== t.userId) || (md?.itemId && md.itemId !== t.itemId)) {
+    if (pt.amountKobo !== t.amountKobo || pt.currency !== t.currency || (md?.userId && md.userId !== t.userId) || (md?.itemId && md.itemId !== t.itemId)) {
       throw new AppError("PAYMENT_VERIFICATION_FAILED");
     }
 
@@ -206,21 +219,23 @@ export async function confirmPayment(reference: string, pt: PaystackTransaction,
       paymentStatus: "SUCCESSFUL", physical, fulfillmentStatus: physical ? "AWAITING" : "NOT_REQUIRED", batchId, batchNumber, batchPending, emailStatus: "PENDING",
       createdAt: t.createdAt, paidAt: now, deliveredAt: null, deliveredBy: null, updatedAt: now,
     });
-    const ledger = (suffix: string, e: Record<string, unknown>) => tx.set(db().doc(`financialLedger/${reference}_${suffix}`), { eventType: suffix, orderId: t.orderId, withdrawalId: null, currency: t.currency, status: "CONFIRMED", reference, createdAt: now, itemId: t.itemId, ...e });
+    const ledger = (suffix: string, e: Record<string, unknown>) => tx.set(db().doc(`financialLedger/${reference}_${suffix}`), { provider: pt.provider, eventType: suffix, orderId: t.orderId, withdrawalId: null, currency: t.currency, status: "CONFIRMED", reference, createdAt: now, itemId: t.itemId, ...e });
     ledger("PAYMENT", { ownerAdminId: t.ownerAdminId, amountKobo: t.subtotalKobo, direction: "CREDIT" });
     if (t.platformFeeKobo > 0) ledger("PLATFORM_FEE", { ownerAdminId: null, amountKobo: t.platformFeeKobo, direction: "CREDIT" });
-    if (pt.fees && pt.fees > 0) ledger("PROCESSOR_FEE", { ownerAdminId: null, amountKobo: pt.fees, direction: "DEBIT" });
+    if (pt.feesKobo && pt.feesKobo > 0) ledger("PROCESSOR_FEE", { ownerAdminId: null, amountKobo: pt.feesKobo, direction: "DEBIT" });
 
     recordSale(tx, t.ownerAdminId, t.subtotalKobo, physical); // same transaction as the order: exactly once, however many times verify/webhook/reconcile run
 
-    const patch = { status: "SUCCESSFUL" as PaymentStatus, paystackTransactionId: String(pt.id), verifiedAt: now, updatedAt: now, statusHistory: hist("SUCCESSFUL") };
+    const patch = { status: "SUCCESSFUL" as PaymentStatus, providerTransactionId: pt.providerTransactionId, confirmedVia: source, verifiedAt: now, updatedAt: now, statusHistory: hist("SUCCESSFUL") };
     tx.update(refDoc, { ...patch, ...(source === "webhook" ? { webhookProcessedAt: now } : {}) });
     tx.update(txnDoc, { ...patch, batchId, batchNumber });
     if (batchPending) auditInTx(tx, { actorUid: "system", actorRole: "SYSTEM", action: "PAID_ORDER_NEEDS_BATCH", resourceType: "order", resourceId: t.orderId, metadata: { itemId: t.itemId } });
     return { orderId: t.orderId as string, already: false as const };
   });
 
-  await sendOrderEmail(outcome.orderId).catch((e) => console.error("[payments] email failed", outcome.orderId, e instanceof Error ? e.message : "unknown"));
+  const send = () => sendOrderEmail(outcome.orderId).catch((e) => console.error("[payments] email failed", outcome.orderId, e instanceof Error ? e.message : "unknown"));
+  // Webhooks must answer fast (Credo expects a 200 within 5 seconds), so the email goes out after the response.
+  if (source === "webhook") { try { after(send); } catch { await send(); } } else await send();
   return { orderId: outcome.orderId, alreadyProcessed: outcome.already };
 }
 

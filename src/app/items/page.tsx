@@ -5,7 +5,7 @@ import { EmptyState, PageTitle } from "@/components/ui/States";
 import { isPurchasable } from "@/lib/item-status";
 import { toStudentItem } from "@/lib/pricing";
 import { db } from "@/lib/server/firebase-admin";
-import { toItem } from "@/lib/server/items";
+import { syncItemStatuses, toItem } from "@/lib/server/items";
 import { getSessionUser } from "@/lib/server/session";
 import { currentClassYear } from "@/lib/server/student-class";
 
@@ -16,7 +16,7 @@ export default async function ItemsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?next=%2Fitems"); // the catalog (and its class prices) is for signed-in users only
   const [snap, year] = await Promise.all([db().collection("items").where("status", "in", ["ACTIVE", "SCHEDULED"]).get(), currentClassYear(user.uid)]);
-  const items = snap.docs.map(toItem).filter((i) => isPurchasable(i)).map((i) => toStudentItem(i, year)); // prices for the viewer's class only
+  const items = (await syncItemStatuses(snap.docs.map(toItem))).filter((i) => isPurchasable(i)).map((i) => toStudentItem(i, year)); // prices for the viewer's class only
   return (
     <>
       <PageTitle title="Items" subtitle="Everything you can pay for right now." />

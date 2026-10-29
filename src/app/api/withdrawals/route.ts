@@ -5,7 +5,7 @@ import { ADMIN_ROLES, requireUser } from "@/lib/server/session";
 
 /**
  * Read-only for now: ledger-backed balance + withdrawal history. Transfer initiation is intentionally NOT
- * implemented until Paystack's transfer/settlement model is verified for this account (PRD section 23).
+ * implemented until the payment provider's transfer/settlement model is verified for this account (PRD section 23).
  */
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req, ADMIN_ROLES);

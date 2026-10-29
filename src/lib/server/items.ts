@@ -1,6 +1,8 @@
 import "server-only";
 import type { DocumentData, DocumentSnapshot } from "firebase-admin/firestore";
 import type { Item, SessionUser, SubItem } from "@/types";
+import { resolveItemStatus } from "@/lib/item-status";
+import { audit } from "./audit";
 import { db } from "./firebase-admin";
 import { AppError } from "./errors";
 
@@ -46,5 +48,32 @@ export async function itemsForUser(user: SessionUser): Promise<Item[]> {
   const col = db().collection("items");
   const q = user.role === "SUPER_ADMIN" ? col : user.role === "ADMIN" ? col.where("ownerAdminId", "==", user.uid) : col.where("assignedStaffIds", "array-contains", user.uid);
   const snap = await q.get();
-  return snap.docs.map(toItem).sort((a, b) => b.createdAt - a.createdAt);
+  return (await syncItemStatuses(snap.docs.map(toItem))).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/**
+ * Brings an item's stored status in line with its schedule (see `resolveItemStatus`) and returns the up-to-date item.
+ * Runs when an admin opens the item pages and before a student can see, price or buy an item. The write only happens if the
+ * stored status is still the one we read, so a concurrent admin change always wins.
+ */
+export async function syncItemStatus(item: Item): Promise<Item> {
+  const next = resolveItemStatus(item);
+  if (next === item.status) return item;
+  const ref = db().doc(`items/${item.id}`);
+  const applied = await db().runTransaction(async (tx) => {
+    const cur = await tx.get(ref);
+    if (!cur.exists || cur.get("status") !== item.status) return false;
+    tx.update(ref, { status: next, updatedAt: Date.now() });
+    return true;
+  });
+  if (!applied) return loadItem(item.id);
+  await audit({ actorUid: "system", actorRole: "SYSTEM", action: "ITEM_STATUS_AUTO_UPDATED", resourceType: "item", resourceId: item.id, metadata: { from: item.status, to: next } }).catch(() => undefined);
+  return { ...item, status: next };
+}
+
+export const syncItemStatuses = (items: Item[]): Promise<Item[]> => Promise.all(items.map(syncItemStatus));
+
+/** loadItem + syncItemStatus: for every path where the current status matters. */
+export async function loadFreshItem(itemId: string): Promise<Item> {
+  return syncItemStatus(await loadItem(itemId));
 }

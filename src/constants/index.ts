@@ -65,6 +65,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PAYMENT_VERIFICATION_FAILED: "We could not verify this payment yet.",
   PAYMENT_ALREADY_PROCESSED: "This payment has already been processed.",
   INVALID_WEBHOOK_SIGNATURE: "Invalid signature.",
+  PROVIDER_NOT_CONFIGURED: "Save this provider's keys before switching to it.",
+  PROVIDER_SECRETS_KEY_MISSING: "Set PROVIDER_SECRETS_KEY (32+ characters) in the server environment first. Keys are encrypted with it before they are stored.",
   INSUFFICIENT_AVAILABLE_BALANCE: "The requested amount exceeds the available balance.",
   WITHDRAWAL_FAILED: "The withdrawal could not be completed.",
   NFC_NOT_SUPPORTED: "NFC is not supported on this device or browser.",

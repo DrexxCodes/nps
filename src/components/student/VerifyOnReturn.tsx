@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client/api";
 
-/** Paystack's redirect is only a hint: ask the server to verify with Paystack, then refresh. */
+/** The provider's redirect is only a hint: ask the server to verify with the provider, then refresh. */
 export function VerifyOnReturn({ reference }: { reference: string }) {
   const router = useRouter();
   const [msg, setMsg] = useState("Confirming your payment…");

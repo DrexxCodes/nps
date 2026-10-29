@@ -8,7 +8,9 @@ const schema = z.object({
   FIREBASE_PROJECT_ID: z.string().min(1),
   FIREBASE_CLIENT_EMAIL: z.string().min(1),
   FIREBASE_PRIVATE_KEY: z.string().min(1),
-  PAYSTACK_SECRET_KEY: z.string().min(1),
+  // Payment provider keys now live in the admin panel (encrypted with PROVIDER_SECRETS_KEY). PAYSTACK_SECRET_KEY remains an optional fallback.
+  PAYSTACK_SECRET_KEY: z.string().optional(),
+  PROVIDER_SECRETS_KEY: z.string().min(32).optional(),
   CLOUDINARY_API_KEY: z.string().min(1),
   CLOUDINARY_API_SECRET: z.string().min(1),
   NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: z.string().min(1),

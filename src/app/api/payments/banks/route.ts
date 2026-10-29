@@ -1,5 +1,5 @@
 import { ok, route } from "@/lib/server/errors";
-import { listBanks } from "@/lib/server/paystack";
+import { listBanks } from "@/lib/server/providers/paystack";
 import { requireUser } from "@/lib/server/session";
 
 export const GET = route(async (req: Request) => {

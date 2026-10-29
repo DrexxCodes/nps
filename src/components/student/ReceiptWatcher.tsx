@@ -6,15 +6,15 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { api } from "@/lib/client/api";
 
-const FALLBACK_AFTER_MS = 5000; // our own record first; then ask Paystack directly
+const FALLBACK_AFTER_MS = 15_000; // our own record first (the webhook normally lands within a few seconds); only then ask the provider directly
 const RETRY_VERIFY_MS = 6000;
 const GIVE_UP_MS = 90_000;
 
 type Phase = "checking" | "verifying" | "failed" | "abandoned" | "slow";
 
 /**
- * Paystack sends the student back here with the reference. We read our own `References` record every second or so (the webhook
- * usually has already confirmed it). If it is still pending after 5 seconds, we call the verify endpoint, which asks Paystack's
+ * The payment provider sends the student back here with the reference. We read our own `References` record every second or so (the webhook
+ * usually has already confirmed it). If it is still pending after 15 seconds, we call the verify endpoint, which asks the provider's
  * transaction API directly and updates the record. When it turns SUCCESSFUL the server re-renders this page as the receipt.
  */
 export function ReceiptWatcher({ reference }: { reference: string }) {
@@ -78,7 +78,7 @@ export function ReceiptWatcher({ reference }: { reference: string }) {
     <div role="status" aria-live="polite" className="glass mx-auto max-w-md rounded-2xl p-8 text-center">
       <Loader2 className="mx-auto mb-3 size-10 animate-spin text-[var(--accent)]" aria-hidden />
       <h2 className="font-display text-xl font-bold">Confirming your payment…</h2>
-      <p className="mt-2 text-sm text-[var(--muted)]">{phase === "verifying" ? "Taking a little longer than usual, so we're checking with Paystack directly." : "This usually takes a few seconds. Please keep this page open."}</p>
+      <p className="mt-2 text-sm text-[var(--muted)]">{phase === "verifying" ? "Taking a little longer than usual, so we're checking with the payment provider directly." : "This usually takes a few seconds. Please keep this page open."}</p>
     </div>
   );
 }

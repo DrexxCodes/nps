@@ -14,15 +14,24 @@ export const metadata = { title: "Receipt" };
 export const dynamic = "force-dynamic";
 
 const REFERENCE = /^NAPSS-NAU-\d+-[A-Z]{2,}$/;
+const REFERENCE_IN = /NAPSS-NAU-\d+-[A-Z]{2,}/;
+type Q = Record<string, string | string[] | undefined>;
+const values = (q: Q, keys: string[]) => keys.flatMap((k) => [q[k]].flat()).filter((v): v is string => typeof v === "string" && v !== "");
 
 /**
- * Paystack's callback lands here with ?reference=... (and trxref). We look the reference up in our own `References` collection:
- * paid > show the receipt; anything else > ReceiptWatcher keeps checking, and falls back to asking Paystack after 5 seconds.
+ * The provider's callback lands here with our reference (Paystack: ?reference= and trxref; Credo appends its own transRef to the callback URL).
+ * Our reference is picked out of whatever came back, even if a provider glued its own parameters onto the URL. If only the provider's
+ * reference came back, our record is found through it. Then we look the reference up in our own `References` collection:
+ * paid > show the receipt; anything else > ReceiptWatcher keeps checking, and falls back to asking the provider after 15 seconds.
  */
-export default async function ReceiptPage({ searchParams }: { searchParams: Promise<{ reference?: string; trxref?: string }> }) {
+export default async function ReceiptPage({ searchParams }: { searchParams: Promise<Q> }) {
   const user = await requirePageUser();
   const q = await searchParams;
-  const reference = q.reference ?? q.trxref ?? "";
+  let reference = values(q, ["reference", "trxref", "businessRef"]).map((v) => v.match(REFERENCE_IN)?.[0]).find(Boolean) ?? "";
+  if (!reference) {
+    const providerRef = values(q, ["transRef", "credoReference"]).find((v) => /^[\w-]{6,64}$/.test(v));
+    if (providerRef) reference = (await db().collection("References").where("providerRef", "==", providerRef).where("userId", "==", user.uid).limit(1).get()).docs[0]?.id ?? "";
+  }
   const missing = <EmptyState icon={<ReceiptIcon className="size-6" />} title="No receipt to show" body="Open a receipt from your orders, or complete a payment to get one." action={<Link href="/dashboard/orders" className={buttonClass()}>My orders</Link>} />;
   if (!REFERENCE.test(reference)) return missing;
 

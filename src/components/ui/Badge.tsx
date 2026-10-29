@@ -1,3 +1,6 @@
+import { ITEM_STATUS_LABEL, ITEM_STATUS_TONE } from "@/lib/item-status";
+import type { ItemStatus } from "@/types";
+
 const tones = {
   green: "bg-[var(--accent-soft)] text-[var(--accent)]",
   amber: "bg-amber-500/15 text-[var(--warn)]",
@@ -24,3 +27,5 @@ export function FulfillmentBadge({ fulfillment, batchStatus, batched }: { fulfil
   if (batchStatus === "PROCESSING") return <Badge tone="amber">Processing</Badge>;
   return <Badge tone="gray">Queued</Badge>;
 }
+
+export const ItemStatusBadge = ({ status }: { status: ItemStatus }) => <Badge tone={ITEM_STATUS_TONE[status]}>{ITEM_STATUS_LABEL[status]}</Badge>;

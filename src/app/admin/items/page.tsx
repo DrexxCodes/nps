@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
+import { ItemStatusBadge } from "@/components/ui/Badge";
 import { buttonClass } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState, PageTitle } from "@/components/ui/States";
@@ -21,7 +21,7 @@ export default async function AdminItems() {
         <div className="grid gap-3">{items.map((i) => (
           <Card key={i.id} className="flex flex-wrap items-center justify-between gap-3">
             <div><Link href={`/admin/items/${i.id}`} className="font-display text-lg font-bold hover:underline">{i.name}</Link><p className="text-sm text-[var(--muted)]">{i.hasSubItems ? `${i.subItems.length} sub-items` : formatNaira(i.basePriceKobo)}{i.batchProcessingEnabled ? " · batched" : ""}</p></div>
-            <div className="flex items-center gap-2"><Badge tone={i.status === "ACTIVE" ? "green" : i.status === "SUSPENDED" ? "red" : "gray"}>{i.status.toLowerCase()}</Badge>
+            <div className="flex items-center gap-2"><ItemStatusBadge status={i.status} />
               <Link href={`/admin/items/${i.id}/orders`} className={buttonClass("outline", "sm")}>Orders</Link>{i.batchProcessingEnabled && <Link href={`/admin/items/${i.id}/batches`} className={buttonClass("outline", "sm")}>Batches</Link>}</div>
           </Card>))}</div>
       )}

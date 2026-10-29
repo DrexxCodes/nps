@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { isPurchasable } from "@/lib/item-status";
 import { toStudentItem } from "@/lib/pricing";
-import { loadItem } from "@/lib/server/items";
+import { loadFreshItem } from "@/lib/server/items";
 import { derivedAcademicYear, getUserDoc } from "@/lib/server/profile";
 import { avatarSeedOf } from "@/lib/server/public-profile";
 import { getSessionUser } from "@/lib/server/session";
@@ -16,7 +16,7 @@ export default async function ItemPage({ params }: { params: Promise<{ itemId: s
   const { itemId } = await params;
   const user = await getSessionUser();
   if (!user) redirect(`/login?next=${encodeURIComponent(`/items/${itemId}`)}`); // signed-out visitors never see items or prices
-  const loaded = await loadItem(itemId).catch(() => null);
+  const loaded = await loadFreshItem(itemId).catch(() => null);
   if (!loaded || loaded.status === "DRAFT") notFound();
   const [profile, settings] = await Promise.all([getUserDoc(user.uid), getPlatformSettings()]);
   if (!isPurchasable(loaded)) return <EmptyState title={loaded.name} body="This item is not open for purchase right now." />;

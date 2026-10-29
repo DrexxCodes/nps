@@ -1,7 +1,7 @@
 import { bankSchema } from "@/lib/validation/schemas";
 import { AppError, ok, route } from "@/lib/server/errors";
 import { clientIp, rateLimit } from "@/lib/server/rate-limit";
-import { resolveAccount } from "@/lib/server/paystack";
+import { resolveAccount } from "@/lib/server/providers/paystack";
 import { requireUser } from "@/lib/server/session";
 
 export const POST = route(async (req: Request) => {

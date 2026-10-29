@@ -76,7 +76,7 @@ export function Checkout({ itemId, itemName, hasSubItems, subItems, variantSets,
       </div>
 
       {signedIn ? (
-        <Button className="w-full" loading={busy} disabled={!pricing || !check.ok} onClick={pay}>Pay {pricing ? formatNaira(pricing.totalKobo) : ""} with Paystack</Button>
+        <Button className="w-full" loading={busy} disabled={!pricing || !check.ok} onClick={pay}>Pay {pricing ? formatNaira(pricing.totalKobo) : ""}</Button>
       ) : (
         <Link href={`/login?next=/items/${itemId}`} className={`${buttonClass()} w-full`}>Sign in to pay</Link>
       )}

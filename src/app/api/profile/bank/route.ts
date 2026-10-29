@@ -1,7 +1,7 @@
 import { bankSchema } from "@/lib/validation/schemas";
 import { AppError, ok, route } from "@/lib/server/errors";
 import { db } from "@/lib/server/firebase-admin";
-import { listBanks, resolveAccount } from "@/lib/server/paystack";
+import { listBanks, resolveAccount } from "@/lib/server/providers/paystack";
 import { requireUser } from "@/lib/server/session";
 
 /** Re-resolves server-side so the stored account name is never client-supplied. */

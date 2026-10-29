@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { academicYear, exceedsCourseDuration, normalizePhone, validateAdmissionNumber } from "@/lib/admission";
 import { computePricing, selectSubItems } from "@/lib/money";
-import { isPurchasable } from "@/lib/item-status";
+import { isPurchasable, resolveItemStatus } from "@/lib/item-status";
 
 describe("admission numbers", () => {
   const now = new Date("2026-10-21T10:00:00Z");
@@ -57,5 +57,13 @@ describe("misc", () => {
     expect(isPurchasable({ status: "ACTIVE", startAt: null, endAt: 10 }, 20)).toBe(false);
     expect(isPurchasable({ status: "PAUSED", startAt: null, endAt: null }, 20)).toBe(false);
     expect(isPurchasable({ status: "SCHEDULED", startAt: 5, endAt: null }, 20)).toBe(true);
+  });
+  it("applies the schedule to the stored status", () => {
+    expect(resolveItemStatus({ status: "SCHEDULED", startAt: 5, endAt: null }, 20)).toBe("ACTIVE");
+    expect(resolveItemStatus({ status: "SCHEDULED", startAt: 50, endAt: null }, 20)).toBe("SCHEDULED");
+    expect(resolveItemStatus({ status: "ACTIVE", startAt: null, endAt: 10 }, 20)).toBe("ENDED");
+    expect(resolveItemStatus({ status: "SCHEDULED", startAt: 5, endAt: 10 }, 20)).toBe("ENDED");
+    expect(resolveItemStatus({ status: "ACTIVE", startAt: null, endAt: null }, 20)).toBe("ACTIVE");
+    for (const s of ["DRAFT", "PAUSED", "SUSPENDED", "ARCHIVED", "ENDED"] as const) expect(resolveItemStatus({ status: s, startAt: 5, endAt: 10 }, 20)).toBe(s);
   });
 });

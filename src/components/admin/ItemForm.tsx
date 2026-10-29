@@ -11,12 +11,12 @@ import { useToast } from "@/components/ui/Toast";
 import { ITEM_STATUSES, NFC_FIELDS, REQUIREMENT_LABELS, REQUIREMENT_TYPES } from "@/constants";
 import { api } from "@/lib/client/api";
 import { shortId } from "@/lib/ids";
+import { ITEM_STATUS_LABEL } from "@/lib/item-status";
 import { blankClassPrices, classYearList, emptyItemValues, toFormValues, toItemPayload, variantSetsProblem } from "@/lib/item-form";
-import type { Item, ItemStatus, NfcField } from "@/types";
+import type { Item, NfcField } from "@/types";
 import type { ItemFormValues } from "@/types/item-form";
 
 const NFC_LABEL: Record<NfcField, string> = { PROFILE_URL: "Public profile URL", ADMISSION_NUMBER: "Admission number", EMAIL: "Email", PHONE: "Phone", ACADEMIC_YEAR: "Academic year" };
-const STATUS_LABEL: Record<ItemStatus, string> = { DRAFT: "Draft", SCHEDULED: "Scheduled", ACTIVE: "Active", PAUSED: "Paused", ENDED: "Ended", SUSPENDED: "Suspended", ARCHIVED: "Archived" };
 
 /** `courseYears` = the platform's course duration; it decides how many classes the class-pricing editor offers. */
 export function ItemForm({ item, courseYears }: { item?: Item; courseYears: number }) {
@@ -47,7 +47,7 @@ export function ItemForm({ item, courseYears }: { item?: Item; courseYears: numb
           <Card className="space-y-4">
             <Input label="Item name" error={errors.name?.message} {...register("name", { required: "Enter a name" })} />
             <Textarea label="Description" {...register("description")} />
-            <Select label="Status" {...register("status")} disabled={item?.status === "SUSPENDED"}>{ITEM_STATUSES.filter((s) => s !== "SUSPENDED").map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</Select>
+            <Select label="Status" {...register("status")} disabled={item?.status === "SUSPENDED"}>{ITEM_STATUSES.filter((s) => s !== "SUSPENDED").map((s) => <option key={s} value={s}>{ITEM_STATUS_LABEL[s]}</option>)}</Select>
             <div className="grid gap-4 sm:grid-cols-2"><Input label="Opens" type="datetime-local" {...register("startAt")} /><Input label="Closes" type="datetime-local" {...register("endAt")} /></div>
           </Card>
 

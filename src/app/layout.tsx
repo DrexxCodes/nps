@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { SsoBridge } from "@/components/auth/SsoBridge";
 import { Footer } from "@/components/layout/Footer";
@@ -23,9 +24,10 @@ export const viewport: Viewport = { themeColor: [{ media: "(prefers-color-scheme
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser().catch(() => null); // memoized per request: the Navbar's own lookup is the same call
+  const nonce = (await headers()).get("x-nonce") ?? undefined; // set by proxy.ts; the CSP only runs inline scripts that carry it
   return (
     <html lang="en" suppressHydrationWarning className={`${display.variable} ${sans.variable}`}>
-      <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /><script dangerouslySetInnerHTML={{ __html: pwaScript }} /></head>
+      <head><script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} /><script nonce={nonce} dangerouslySetInnerHTML={{ __html: pwaScript }} /></head>
       <body>
         <ThemeProvider>
           <ToastProvider>
